@@ -4,7 +4,7 @@
  * Plugin URI:    http://magicfields17.wordpress.com/magic-fields-2-search-0-4-1/
  * Description:   Widget for searching Magic Fields 2 custom fields and custom taxonomies and also post_content.
  * Documentation: http://magicfields17.wordpress.com/magic-fields-2-search-0-4-1/
- * Version:       0.4.1.1
+ * Version:       0.4.2
  * Author:        Magenta Cuda
  * Author URI:    http://magentacuda.wordpress.com
  * License:       GPL2
@@ -87,7 +87,11 @@ EOD
 </select>
 </div>
 <div id="magic-fields-parameters"></div>
-<input type="submit" value="Search">
+Results should satisfy 
+<input type="radio" name="magic-fields-search-and-or" value="and" checked><strong>All</strong>
+<input type="radio" name="magic-fields-search-and-or" value="or"><strong>Any</strong>
+of the selected search conditions.
+<input id="magic-fields-search" type="submit" value="Search" disabled>
 </form>
 <script>
 jQuery("form#search-using-magic-fields-<?php echo $this->number; ?> select#post_type").change(function(){
@@ -108,6 +112,7 @@ jQuery("form#search-using-magic-fields-<?php echo $this->number; ?> select#post_
         function(response){
             //console.log(response);
             jQuery("form#search-using-magic-fields-<?php echo $this->number; ?> div#magic-fields-parameters").html(response);
+            jQuery("form#search-using-magic-fields-<?php echo $this->number; ?> input#magic-fields-search").prop("disabled",false);
         }
     );
 });
@@ -233,6 +238,22 @@ jQuery("button.scpbcfw-display-button").click(function(event){
 </script>
 <?php
     }   # public function form( $instance ) {
+    
+     public static function &join_arrays( $op, &$arr0, &$arr1 ) {
+        $is_arr0 = is_array( $arr0 );
+        $is_arr1 = is_array( $arr1 );
+        if ( $is_arr0 || $is_arr1 ) {
+            if ( $op == 'AND' ) {
+                if ( $is_arr0 && $is_arr1 ) { $arr = array_intersect( $arr0, $arr1 ); }
+                else if ( $is_arr0 ) { $arr = $arr0; } else { $arr = $arr1; }
+            } else {
+                if ( $is_arr0 && $is_arr1 ) { $arr = array_unique( array_merge( $arr0, $arr1 ) ); }
+                else if ( $is_arr0 ) { $arr = $arr0; } else { $arr = $arr1; }
+            }
+            return $arr;
+        }
+        return FALSE;
+    }
 }   # class Search_Using_Magic_Fields_Widget extends WP_Widget
 
 add_action( 'widgets_init', function() {
@@ -457,6 +478,7 @@ jQuery("button.scpbcfw-display-button").click(function(event){
         global $wpdb;
         if ( !$query->is_main_query() || !array_key_exists( 'magic_fields_search_form', $_REQUEST ) ) { return $where; }
         #error_log( '##### filter:posts_where:$_REQUEST=' . print_r( $_REQUEST, TRUE ) );
+        $and_or = $_REQUEST['magic-fields-search-and-or'] == 'and' ? 'AND' : 'OR';
         # first get taxonomy name to term_taxonomy_id transalation table in case we need the translations
         $results = $wpdb->get_results( <<<EOD
             SELECT x.taxonomy, t.name, x.term_taxonomy_id
@@ -499,18 +521,20 @@ EOD
         #error_log( '##### filter:posts_where:$_REQUEST=' . print_r( $_REQUEST, TRUE ) );
         #error_log( '##### filter:posts_where:$where=' . $where );
         # first do custom fields
-        $sql = "SELECT p.ID FROM $wpdb->posts p WHERE p.post_type = '$_REQUEST[post_type]'";
+        $non_field_keys = array( 'magic_fields_search_form', 'magic_fields_search_widget_option',
+            'magic_fields_search_widget_number', 'magic-fields-search-and-or', 'post_type' );
+        $sql = '';
         foreach ( $_REQUEST as $key => $values ) {
-            if ( $key === 'magic_fields_search_form' || $key === 'magic_fields_search_widget_option'
-                || $key === 'magic_fields_search_widget_number' || $key === 'post_type' ) { continue; }
+            if ( in_array( $key, $non_field_keys ) ) { continue; }
             $prefix = substr( $key, 0, 8 );
-            if ( $prefix === 'tax-cat-' || $prefix === 'tax-tag-' || $prefix === 'pst-std-' ) { continue; }
+            if ( $prefix == 'tax-cat-' || $prefix == 'tax-tag-' || $prefix == 'pst-std-' ) { continue; }
             if ( !is_array( $values) ) {
                 if ( $values ) { $values = array( $values ); }
                 else { $values = array(); }
             }
             if ( !$values || $values[0] === 'no-selection' ) { continue; }
-            $sql .= " AND EXISTS ( SELECT * FROM $wpdb->postmeta w INNER JOIN " . MF_TABLE_POST_META
+            if ( $sql ) { $sql .= " $and_or "; }
+            $sql .= " EXISTS ( SELECT * FROM $wpdb->postmeta w INNER JOIN " . MF_TABLE_POST_META
                 . ' m ON w.meta_id = m.meta_id WHERE ( ';
             foreach ( $values as $value ) {
                 if ( $value !== $values[0] ) { $sql .= ' OR '; }
@@ -518,15 +542,21 @@ EOD
             }   # foreach ( $values as $value ) {
             $sql .= ' ) AND w.post_id = p.ID )';
         }   #  foreach ( $_REQUEST as $key => $values ) {
-        #error_log( '##### filter:posts_where:meta $sql=' . $sql );
-        $ids0 = $wpdb->get_col( $sql );
+        if ( $sql ) {
+            $sql = "SELECT p.ID FROM $wpdb->posts p WHERE p.post_type = '$_REQUEST[post_type]' AND p.post_status = 'publish' "
+                . " AND ( $sql ) ";
+            #error_log( '##### filter:posts_where:meta $sql=' . $sql );
+            $ids0 = $wpdb->get_col( $sql );
+            if ( $and_or == 'AND' && !$ids0 ) { return ' AND 1 = 2 '; }
+        } else {
+            $ids0 = FALSE;
+        }
         # now do taxonomies
-        $sql = "SELECT p.ID FROM $wpdb->posts p WHERE p.post_type = '$_REQUEST[post_type]'";
+        $sql = '';
         foreach ( $_REQUEST as $key => $values ) {
-            if ( $key === 'magic_fields_search_form' || $key === 'magic_fields_search_widget_option'
-                || $key === 'magic_fields_search_widget_number' || $key === 'post_type' ) { continue; }
+            if ( in_array( $key, $non_field_keys ) ) { continue; }
             $prefix = substr( $key, 0, 8 );
-            if ( $prefix !== 'tax-cat-' && $prefix !== 'tax-tag-' ) { continue; }
+            if ( $prefix != 'tax-cat-' && $prefix != 'tax-tag-' ) { continue; }
             if ( !is_array( $values) ) {
                 if ( $values ) { $values = array( $values ); }
                 else { $values = array(); }
@@ -537,27 +567,48 @@ EOD
                 if ( $sql2 ) { $sql2 .= ' OR '; }
                 $sql2 .= "term_taxonomy_id = $value"; 
             }   # foreach ( $values as $value ) {
-            if ( !$sql2 ) { $sql2 = '1 = 2'; }
-            $sql .= " AND EXISTS ( SELECT * FROM $wpdb->term_relationships WHERE ( $sql2 ) AND object_id = p.ID )";
+            if ( $sql ) { $sql .= " $and_or "; }
+            $sql .= " EXISTS ( SELECT * FROM $wpdb->term_relationships WHERE ( $sql2 ) AND object_id = p.ID )";
         }   # foreach ( $_REQUEST as $key => $values ) {
-        #error_log( '##### filter:posts_where:tax $sql=' . $sql );
-        $ids1 = $wpdb->get_col( $sql );
-        $ids = array_intersect( $ids0, $ids1 );
-        if ( $ids ) {
-            $ids = implode( ',', $ids  );
-            $where = " AND post_status = 'publish' AND ID IN ( $ids ) ";
+        if ( $sql ) {
+            $sql = "SELECT p.ID FROM $wpdb->posts p WHERE p.post_type = '$_REQUEST[post_type]' AND p.post_status = 'publish' "
+            . " AND ( $sql ) ";
+            #error_log( '##### filter:posts_where:tax $sql=' . $sql );
+            $ids1 = $wpdb->get_col( $sql );
+            if ( $and_or == 'AND' && !$ids1 ) { return ' AND 1 = 2 '; }
         } else {
-            $where = " AND post_status = 'publish' AND post_type = '$_REQUEST[post_type]' ";
+            $ids1 = FALSE;
         }
+        $ids = Search_Using_Magic_Fields_Widget::join_arrays( $and_or, $ids0, $ids1 );
         if ( array_key_exists( 'pst-std-post_content', $_REQUEST ) && $_REQUEST['pst-std-post_content'] ) {
             #&& $_REQUEST['pst-std-post_content'] != '*enter search value*' ) {
-            $where .= <<<EOD
-                AND ( post_content LIKE "%{$_REQUEST['pst-std-post_content']}%"
-                 OR   post_title   LIKE "%{$_REQUEST['pst-std-post_content']}%"
-                 OR   post_excerpt LIKE "%{$_REQUEST['pst-std-post_content']}%" ) 
+            $sql = <<<EOD
+                SELECT ID FROM $wpdb->posts WHERE post_type = "$_REQUEST[post_type]" AND post_status = "publish"
+                    AND ( post_content  LIKE "%{$_REQUEST['pst-std-post_content']}%"
+                        OR post_title   LIKE "%{$_REQUEST['pst-std-post_content']}%"
+                        OR post_excerpt LIKE "%{$_REQUEST['pst-std-post_content']}%" )
 EOD;
+            $ids2 = $wpdb->get_col( $sql );
+            if ( $and_or == 'AND' && !$ids1 ) { return ' AND 1 = 2 '; }
+        } else {
+            $ids2 = FALSE;
         }
-        #error_log( '##### filter:posts_where:$where=' . $where );
+        $ids = Search_Using_Magic_Fields_Widget::join_arrays( $and_or, $ids, $ids2 );
+        if ( is_array ( $ids ) ) {
+            if ( $ids ) {
+                $where = ' AND ID IN ( ' . implode( ',', $ids  ) . ' ) ';
+                #error_log( '##### filter:posts_where:$where=' . $where );
+                return $where;
+            } else {
+                $where = ' AND 1 = 2 ';
+                #error_log( '##### filter:posts_where:$where=' . $where );
+                return $where;
+            }
+        } else {
+            $where = " AND ( post_type = '$_REQUEST[post_type]' AND post_status = 'publish' ) ";
+            #error_log( '##### filter:posts_where:$where=' . $where );
+            return $where;
+        }
         return $where;
     }, 10, 2 );   #	add_filter( 'posts_where', function( $where, $query ) {
     # add null 'query_string' filter to force parse_str() call in WP::build_query_string() - otherwise name gets set ? TODO: why?
