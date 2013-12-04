@@ -4,7 +4,7 @@
  * Plugin URI:    http://magicfields17.wordpress.com/magic-fields-2-search-0-4-1/
  * Description:   Widget for searching Magic Fields 2 custom fields and custom taxonomies and also post_content.
  * Documentation: http://magicfields17.wordpress.com/magic-fields-2-search-0-4-1/
- * Version:       0.4.2
+ * Version:       0.4.3
  * Author:        Magenta Cuda
  * Author URI:    http://magentacuda.wordpress.com
  * License:       GPL2
@@ -87,11 +87,19 @@ EOD
 </select>
 </div>
 <div id="magic-fields-parameters"></div>
-Results should satisfy 
+<div id="magic-fields-submit-box" style="display:none">
+<div style="border:2px solid black;padding:5px;margin:5px;border-radius:7px;text-align:center;">
+Results should satisfy<br> 
 <input type="radio" name="magic-fields-search-and-or" value="and" checked><strong>All</strong>
-<input type="radio" name="magic-fields-search-and-or" value="or"><strong>Any</strong>
-of the selected search conditions.
-<input id="magic-fields-search" type="submit" value="Search" disabled>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+<input type="radio" name="magic-fields-search-and-or" value="or"><strong>Any</strong></br>
+of the search conditions.
+</div>
+<div style="text-align:right;">
+<input id="magic-fields-search" type="submit" value="Start Search" style="color:black;border:2px solid black;" disabled>
+&nbsp;&nbsp;
+</div>
+</div>
 </form>
 <script>
 jQuery("form#search-using-magic-fields-<?php echo $this->number; ?> select#post_type").change(function(){
@@ -113,6 +121,7 @@ jQuery("form#search-using-magic-fields-<?php echo $this->number; ?> select#post_
             //console.log(response);
             jQuery("form#search-using-magic-fields-<?php echo $this->number; ?> div#magic-fields-parameters").html(response);
             jQuery("form#search-using-magic-fields-<?php echo $this->number; ?> input#magic-fields-search").prop("disabled",false);
+            jQuery("form#search-using-magic-fields-<?php echo $this->number; ?> div#magic-fields-submit-box").css("display","block");
         }
     );
 });
@@ -126,7 +135,9 @@ jQuery("form#search-using-magic-fields-<?php echo $this->number; ?> select#post_
         #error_log( '##### Search_Using_Magic_Fields_Widget::update():$_POST=' . print_r( $_POST, TRUE ) );    
         #error_log( '##### Search_Using_Magic_Fields_Widget::update():$old=' . print_r( $old, TRUE ) );
         #error_log( '##### Search_Using_Magic_Fields_Widget::update():$new=' . print_r( $new, TRUE ) );
-        return array_map( function( $values ) { return array_map( strip_tags, $values ); }, $new );
+        return array_map( function( $values ) {
+            return is_array( $values) ? array_map( strip_tags, $values ) : strip_tags( $values );
+        }, $new );
     }   # public function update( $new, $old ) {
     
     # form() emits a form for the administrator to select the post types and custom fields that the user will be allowed to search
@@ -224,6 +235,15 @@ EOD
 <?php
         }   # foreach ( $types as $name => $type ) {
 ?>
+<div style="border:1px solid gray;padding:5px;margin:5px;border-radius:7px;">
+Maximum number of items to display per custom field:
+<input type="number" min="4" max="1024" 
+    id="<?php echo $this->get_field_id( 'maximum_number_of_items' ); ?>"
+    name="<?php echo $this->get_field_name( 'maximum_number_of_items' ); ?>"
+    value="<?php echo !empty( $instance['maximum_number_of_items'] ) ? $instance['maximum_number_of_items'] : 16; ?>"
+    style="float:right;text-align:right;">
+<div style="clear:both;"></div>
+</div>
 <script type="text/javascript">
 jQuery("button.scpbcfw-display-button").click(function(event){
     if(jQuery(this).text()=="Open"){
@@ -276,7 +296,8 @@ if ( is_admin() ) {
         #error_log( '##### action:wp_ajax_nopriv_' . Search_Using_Magic_Fields_Widget::GET_FORM_FOR_POST_TYPE . ':$option='
         #    . print_r( $option, TRUE ) );
         $number = $_REQUEST['magic_fields_search_widget_number'];
-        $selected = $option[$_REQUEST['magic_fields_search_widget_number']][$_REQUEST['post_type']];
+        $selected  = $option[$number][$_REQUEST['post_type']];
+        $SQL_LIMIT = $option[$number]['maximum_number_of_items'];
         #error_log( '##### action:wp_ajax_nopriv_' . Search_Using_Magic_Fields_Widget::GET_FORM_FOR_POST_TYPE . ':$selected='
         #    . print_r( $selected, TRUE ) );
         foreach ( get_taxonomies( '', 'objects' ) as $taxonomy ) {
@@ -284,7 +305,6 @@ if ( is_admin() ) {
             if ( !in_array( $_REQUEST['post_type'], $taxonomy->object_type ) ) { continue; }
             $tax_type = ( $taxonomy->hierarchical ) ? 'tax-cat-' : 'tax-tag-';
             if ( !in_array( $tax_type . $taxonomy->name, $selected ) ) { continue; }
-            $SQL_LIMIT = Search_Using_Magic_Fields_Widget::SQL_LIMIT;
             $results = $wpdb->get_results( <<<EOD
                 SELECT x.term_taxonomy_id, t.name, COUNT(*) count
                     FROM $wpdb->term_relationships r, $wpdb->term_taxonomy x, $wpdb->terms t, $wpdb->posts p
@@ -308,7 +328,7 @@ EOD
     value="<?php echo $result->term_taxonomy_id; ?>"><?php echo "$result->name ($result->count)"; ?><br>
 <?php
             }   # foreach ( $results as $result ) {
-            if ( count( $results ) == Search_Using_Magic_Fields_Widget::SQL_LIMIT ) {
+            if ( count( $results ) == $SQL_LIMIT ) {
                 # too many distinct terms for this custom taxonomy so allow user to also manually enter search value
 ?>
 <input id="<?php $meta_key . Search_Using_Magic_Fields_Widget::OPTIONAL_TEXT_VALUE_SUFFIX; ?>"
@@ -344,7 +364,6 @@ EOD
 <?php
                 continue;
             }
-            $SQL_LIMIT = Search_Using_Magic_Fields_Widget::SQL_LIMIT;
             $results = $wpdb->get_results( <<<EOD
                 SELECT m.meta_value, COUNT(*) count FROM $wpdb->postmeta m, $wpdb->posts p
                     WHERE m.post_id = p.ID AND m.meta_key = "$meta_key" AND p.post_type = "$_REQUEST[post_type]"
@@ -401,7 +420,7 @@ EOD
                     else { echo "$key ($value)<br>"; }
                 }   # foreach ( $values as $key => $value) {
             }   # if ( $values ) {
-            if ( count( $results ) == Search_Using_Magic_Fields_Widget::SQL_LIMIT && ( $field->type !== 'related_type'
+            if ( count( $results ) == $SQL_LIMIT && ( $field->type !== 'related_type'
                 && $field->type !== 'alt_related_type' && $field->type !== 'image_media' ) ) {
                 # for these types also allow user to manually enter search values
 ?>
@@ -589,7 +608,8 @@ EOD
                         OR post_excerpt LIKE "%{$_REQUEST['pst-std-post_content']}%" )
 EOD;
             $ids2 = $wpdb->get_col( $sql );
-            if ( $and_or == 'AND' && !$ids1 ) { return ' AND 1 = 2 '; }
+            #error_log( '##### filter:posts_where:post_content $sql=' . $sql );
+            if ( $and_or == 'AND' && !$ids2 ) { return ' AND 1 = 2 '; }
         } else {
             $ids2 = FALSE;
         }
