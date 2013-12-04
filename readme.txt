@@ -3,7 +3,7 @@ Contributors: Magenta Cuda
 Tags: search, custom fields
 Requires at least: 3.6
 Tested up to: 3.7.1
-Stable tag: 0.4.2
+Stable tag: 0.4.3
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -30,14 +30,20 @@ http://magicfields17.wordpress.com/magic-fields-2-search-0-4-1/.
 3. The User's Interface for Searching Posts of the Selected Type.
 
 == Changelog ==
+= 0.4.3 =
+* made items shown per custom field user settable
+* fix bug where AND post content searches incorrectly failed
+* some css style changes for cleaner appearance
 = 0.4.2 =
-Added support for selecting and/or on search condtions.
+* Added support for selecting and/or on search condtions.
 = 0.4.1.1 =
 * Initial release.
 
 == Upgrade Notice ==
+= 0.4.3 =
+* some small enhancements - minor upgrade
 = 0.4.2 =
-Added support for selecting and/or on search condtions.
+* Added support for selecting and/or on search condtions.
 = 0.4.1.1 =
 * Initial release.
 
