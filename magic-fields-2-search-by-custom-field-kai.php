@@ -4,7 +4,7 @@
  * Plugin URI:    http://magicfields17.wordpress.com/magic-fields-2-search-0-4-1/
  * Description:   Widget for searching Magic Fields 2 custom fields and custom taxonomies and also post_content.
  * Documentation: http://magicfields17.wordpress.com/magic-fields-2-search-0-4-1/
- * Version:       0.4.3
+ * Version:       0.4.4
  * Author:        Magenta Cuda
  * Author URI:    http://magentacuda.wordpress.com
  * License:       GPL2
@@ -40,6 +40,8 @@ class Search_Using_Magic_Fields_Widget extends WP_Widget {
     const SQL_LIMIT = '16';                                          # maximum number of items to show per custom field
     #const SQL_LIMIT = '2';                                          # TODO: this limit for testing only replace with above
     const OPTIONAL_TEXT_VALUE_SUFFIX = '-mf2tk-optional-text-value'; # suffix for additional text input for a custom field
+    const OPTIONAL_MINIMUM_VALUE_SUFFIX = '-stcfw-minimum-value';    # suffix to append to optional minimum/maximum value text 
+    const OPTIONAL_MAXIMUM_VALUE_SUFFIX = '-stcfw-maximum-value';    #     inputs for a numeric search field
  
 	public function __construct() {
 		parent::__construct( 'search_magic_fields', __( 'Search using Magic Fields' ),
@@ -371,6 +373,7 @@ EOD
 EOD
                 , OBJECT_K );
             $values = array();   # to be used by serialized fields
+            $numeric = TRUE;
             foreach ( $results as $meta_value => $result ) {
                 if ( !$meta_value ) { continue; }
                 #error_log( '##### ' . $meta_key . ': ' . print_r( $result, TRUE ) );
@@ -399,6 +402,9 @@ EOD
 <input type="checkbox" id="<?php echo $meta_key; ?>" name="<?php echo $meta_key; ?>[]"
     value="<?php echo $meta_value; ?>"><?php echo "$value ($result->count)"; ?><br>
 <?php
+                if ( $field->type == 'textbox' ) {
+                    if ( !is_numeric( $meta_value ) ) { $numeric = FALSE; }
+                }
             }   # foreach ( $results as $result ) {
             # now do second pass on the serialized fields
             if ( $values ) {
@@ -427,6 +433,18 @@ EOD
 <input id="<?php echo $meta_key . Search_Using_Magic_Fields_Widget::OPTIONAL_TEXT_VALUE_SUFFIX; ?>"
     name="<?php echo $meta_key . Search_Using_Magic_Fields_Widget::OPTIONAL_TEXT_VALUE_SUFFIX; ?>"
     class="for-select" type="text" style="width:90%;" placeholder="--Enter Search Value--">
+<?php
+            }
+            if ( $field->type == 'slider' || $field->type == 'datepicker' || ( $field->type == 'textbox' && $numeric ) ) {
+                # only show minimum/maximum input textbox for numeric and date custom fields
+?>
+<h4>Range Search</h4>
+<input id="<?php echo $meta_key . Search_Using_Magic_Fields_Widget::OPTIONAL_MINIMUM_VALUE_SUFFIX; ?>"
+    name="<?php echo $meta_key . Search_Using_Magic_Fields_Widget::OPTIONAL_MINIMUM_VALUE_SUFFIX; ?>"
+    class="for-select" type="text" style="width:90%;" placeholder="--Enter Minimum Value--">
+<input id="<?php echo $meta_key . Search_Using_Magic_Fields_Widget::OPTIONAL_MAXIMUM_VALUE_SUFFIX; ?>"
+    name="<?php echo $meta_key . Search_Using_Magic_Fields_Widget::OPTIONAL_MAXIMUM_VALUE_SUFFIX; ?>"
+    class="for-select" type="text" style="width:90%;" placeholder="--Enter Maximum Value--">
 <?php
             }
 ?>
@@ -517,6 +535,8 @@ EOD
             #error_log( '##### filter:posts_where:$request=' . print_r ( $request, TRUE ) );
             if ( $request
                 && substr_compare( $index, Search_Using_Magic_Fields_Widget::OPTIONAL_TEXT_VALUE_SUFFIX, -$suffix_len ) === 0 ) {
+                # using raw user input data directly so we need to be careful - possible sql injection
+                $request = str_replace( '\'', '', $request );
                 $index = substr( $index, 0, strlen( $index ) - $suffix_len );
                 if ( is_array( $_REQUEST[$index] ) || !array_key_exists( $index, $_REQUEST ) ) {
                     if ( substr_compare( $index, 'tax-', 0, 4 ) === 0 ) {
@@ -531,9 +551,25 @@ EOD
                         $request = $term_taxonomy_ids[$tax_name][strtolower( $request )];
                     }
                     $_REQUEST[$index][] = $request;
-                    # kill the original request
-                    $request = NULL;
+                }    
+                # kill the original request
+                $request = NULL;
+            }
+        }
+        unset( $request );
+        # merge optional min/max values for numeric custom fields into the checkboxes array
+        $suffix_len = strlen( Search_Using_Magic_Fields_Widget::OPTIONAL_MINIMUM_VALUE_SUFFIX );
+        foreach ( $_REQUEST as $index => &$request ) {
+            if ( $request && ( ( $is_min
+                = substr_compare( $index, Search_Using_Magic_Fields_Widget::OPTIONAL_MINIMUM_VALUE_SUFFIX, -$suffix_len ) === 0 )
+                || substr_compare( $index, Search_Using_Magic_Fields_Widget::OPTIONAL_MAXIMUM_VALUE_SUFFIX, -$suffix_len ) === 0
+            ) ) {
+                $index = substr( $index, 0, strlen( $index ) - $suffix_len );
+                if ( is_array( $_REQUEST[$index] ) || !array_key_exists( $index, $_REQUEST ) ) {
+                    $_REQUEST[$index][] = array( 'operator' => $is_min ? 'minimum' : 'maximum', 'value' => $request );
                 }
+                # kill the original request
+                $request = NULL;
             }
         }
         unset( $request );
@@ -555,10 +591,28 @@ EOD
             if ( $sql ) { $sql .= " $and_or "; }
             $sql .= " EXISTS ( SELECT * FROM $wpdb->postmeta w INNER JOIN " . MF_TABLE_POST_META
                 . ' m ON w.meta_id = m.meta_id WHERE ( ';
+            $sql3 = '';   # holds meta_value min/max sql
             foreach ( $values as $value ) {
-                if ( $value !== $values[0] ) { $sql .= ' OR '; }
+                if ( is_array( $value ) ) {
+                    # check for minimum/maximum operation
+                    if ( ( $is_min = $value['operator'] == 'minimum' ) || $value['operator'] == 'maximum' ) {
+                        if ( $sql3 ) { $sql3 .= ' AND '; }
+                        if ( !is_numeric( $value['value'] ) ) { $value['value'] = "'$value[value]'"; }
+                        if ( $is_min ) {
+                            $sql3 .= "( w.meta_key = '$key' AND w.meta_value >= $value[value] )";
+                        } else if ( $value['operator'] == 'maximum' ) {
+                            $sql3 .= "( w.meta_key = '$key' AND w.meta_value <= $value[value] )";
+                        }
+                    }
+                    continue;
+                }
+                 if ( $value !== $values[0] ) { $sql .= ' OR '; }
                 $sql .= "( w.meta_key = '$key' AND w.meta_value LIKE '%$value%' )";
             }   # foreach ( $values as $value ) {
+            if ( $sql3 ) {
+                if ( substr_compare( $sql, 'WHERE ( ', -8, 8 ) == 0 ) { $sql .= $sql3; }
+                else { $sql .= ' OR ( ' . $sql3 . ' ) '; }
+            }
             $sql .= ' ) AND w.post_id = p.ID )';
         }   #  foreach ( $_REQUEST as $key => $values ) {
         if ( $sql ) {

@@ -3,7 +3,7 @@ Contributors: Magenta Cuda
 Tags: search, custom fields
 Requires at least: 3.6
 Tested up to: 3.7.1
-Stable tag: 0.4.3
+Stable tag: 0.4.4
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -30,6 +30,8 @@ http://magicfields17.wordpress.com/magic-fields-2-search-0-4-1/.
 3. The User's Interface for Searching Posts of the Selected Type.
 
 == Changelog ==
+= 0.4.4 =
+* added range search for numeric and date custom fields
 = 0.4.3 =
 * made items shown per custom field user settable
 * fix bug where AND post content searches incorrectly failed
@@ -40,6 +42,8 @@ http://magicfields17.wordpress.com/magic-fields-2-search-0-4-1/.
 * Initial release.
 
 == Upgrade Notice ==
+= 0.4.4 =
+* added range search for numeric and date custom fields
 = 0.4.3 =
 * some small enhancements - minor upgrade
 = 0.4.2 =
