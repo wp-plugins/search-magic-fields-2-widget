@@ -2,15 +2,15 @@
 Contributors: Magenta Cuda
 Tags: search, custom fields
 Requires at least: 3.6
-Tested up to: 3.7.1
-Stable tag: 0.4.4
+Tested up to: 3.9
+Stable tag: 0.4.5
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
 Search Magic Fields 2 custom posts for posts that have user specified values for Magic Fields 2 custom fields.
 
 == Description ==
-This search widget can search for Magic Fields 2 custom posts, WordPress posts and pages by the value of Magic Fields 2 custom fields, WordPress taxonomies and post content. It is designed to be used with Magic Fields 2 only and makes use of Magic Fields 2's proprietary database format to generate user friendly field names and field values. The widget uses user friendly substitutions for the actual values in the database when appropriate, e.g. post title is substituted for post id in related type custom fields. Please visit the [online documentation](http://magicfields17.wordpress.com/magic-fields-2-search-0-4-1/) for more details. This plugin requires at least PHP 5.4.
+This search widget can search for Magic Fields 2 custom posts, WordPress posts and pages by the value of Magic Fields 2 custom fields, WordPress taxonomies and post content. It is designed to be used with Magic Fields 2 only and makes use of Magic Fields 2's proprietary database format to generate user friendly field names and field values. The widget uses user friendly substitutions for the actual values in the database when appropriate, e.g. post title is substituted for post id in related type custom fields. Please visit the [online documentation](http://magicfields17.wordpress.com/magic-fields-2-search-0-4-1/) for more details. This plugin requires at least PHP 5.4 and is not compatible with Magic Fields 2 Toolkit 0.4.2.
 
 == Installation ==
 1. Upload the folder "search-magic-fields-2-widget" to the "/wp-content/plugins/" directory.
@@ -22,14 +22,19 @@ This search widget can search for Magic Fields 2 custom posts, WordPress posts a
 Yes.
 
 = Where is the documentation? =
-http://magicfields17.wordpress.com/magic-fields-2-search-0-4-1/.
+[http://magicfields17.wordpress.com/magic-fields-2-search-0-4-1/](http://magicfields17.wordpress.com/magic-fields-2-search-0-4-1/).
 
 == Screenshots ==
-1. The Adminstrator's Interface.
-2. The User's Interface for Post Type Selection.
-3. The User's Interface for Searching Posts of the Selected Type.
+1. The Adminstrator's Interface for Field Selection.
+2. The Adminstrator's Interface for Settings.
+3. The User's Interface for Post Type Selection.
+4. The User's Interface for Searching Posts of the Selected Type.
+5. The User's Interface for Settings.
 
 == Changelog ==
+= 0.4.5 =
+* optionally display seach results in an alternate format using content macros from Magic Fields 2 toolkit
+* optionally set query type to is_search so only excerpts are displayed for applicable themes
 = 0.4.4 =
 * added range search for numeric and date custom fields
 = 0.4.3 =
@@ -42,6 +47,9 @@ http://magicfields17.wordpress.com/magic-fields-2-search-0-4-1/.
 * Initial release.
 
 == Upgrade Notice ==
+= 0.4.5 =
+* optionally display seach results in an alternate format using content macros from Magic Fields 2 toolkit
+* optionally set query type to is_search so only excerpts are displayed for applicable themes
 = 0.4.4 =
 * added range search for numeric and date custom fields
 = 0.4.3 =
