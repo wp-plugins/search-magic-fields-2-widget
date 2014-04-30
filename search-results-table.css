@@ -1,0 +1,27 @@
+/*
+    Styles for search results table
+*/
+
+table.scpbcfw-result-table {
+    border-collapse:collapse;
+    width:99%;
+    margin:0px auto;
+}
+
+table.scpbcfw-result-table tr:nth-child(odd) {
+    background-color:rgb(232,232,232);
+}
+
+table.scpbcfw-result-table th, table.scpbcfw-result-table td {
+    border:1px solid black;
+}
+
+table.scpbcfw-result-table th, table.scpbcfw-result-table td {
+    padding:5px;
+}
+
+table.scpbcfw-result-table th {
+    background-color:rgb(48,48,48);
+    color:white;
+    text-align:center;
+}
