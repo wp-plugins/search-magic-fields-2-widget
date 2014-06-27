@@ -4,7 +4,7 @@
  * Plugin URI:    http://magicfields17.wordpress.com/magic-fields-2-search-0-4-1/
  * Description:   Widget for searching Magic Fields 2 custom fields and custom taxonomies and also post_content.
  * Documentation: http://magicfields17.wordpress.com/magic-fields-2-search-0-4-1/
- * Version:       0.4.5
+ * Version:       0.4.5.3
  * Author:        Magenta Cuda (PHP), Black Charger (JavaScript)
  * Author URI:    http://magentacuda.wordpress.com
  * License:       GPL2
@@ -83,7 +83,7 @@ class Search_Using_Magic_Fields_Widget extends WP_Widget {
     field_after="</td>
     post_before="<tr>"
     post_after="</tr>"
-    filter="url_to_link"
+    filter="url_to_link;media_url_to_link"
 ]
 </table>
 </div>
@@ -115,7 +115,7 @@ EOD;
 <h2>Search:</h2>
 <div class="magic-field-parameter" style="padding:5px 10px;border:2px solid black;margin:5px;">
 <h3>post type:</h3>
-<select id="post_type" name="post_type" required style="width:100%;">
+<select id="post_type" name="post_type" class="post_type" required style="width:100%;">
 <option value="no-selection">--select post type--</option>
 <?php
         # get data for the administrator selected post types
@@ -133,7 +133,7 @@ EOD
         #error_log( '##### Search_Using_Magic_Fields_Widget::form():$types=' . print_r( $types, TRUE ) );
         foreach ( $types as $name => $type ) {
 ?>      
-<option value="<?php echo $name; ?>"><?php echo "$name ($type->count)"; ?></option>
+<option class="real_post_type" value="<?php echo $name; ?>"><?php echo "$name ($type->count)"; ?></option>
 <?php
         }   # foreach ( $types as $name => $type ) {
 ?>
@@ -167,8 +167,8 @@ Show search results in alternate format:
 </div>
 </div>
 </form>
-<script>
-jQuery("form#search-using-magic-fields-<?php echo $this->number; ?> select#post_type").change(function(){
+<script type="text/javascript">
+jQuery("form#search-using-magic-fields-<?php echo $this->number; ?> select.post_type").change(function(){
     jQuery.post(
         '<?php echo admin_url( 'admin-ajax.php' ); ?>',{
             action:'<?php echo Search_Using_Magic_Fields_Widget::GET_FORM_FOR_POST_TYPE; ?>',
@@ -185,6 +185,13 @@ jQuery("form#search-using-magic-fields-<?php echo $this->number; ?> select#post_
             jQuery("form#search-using-magic-fields-<?php echo $this->number; ?> div#magic-fields-submit-box").css("display","block");
         }
     );
+});
+jQuery(document).ready(function(){
+    if(jQuery("form#search-using-magic-fields-<?php echo $this->number; ?> select.post_type option.real_post_type").length===1){
+        jQuery("form#search-using-magic-fields-<?php echo $this->number; ?> select.post_type option.real_post_type").prop("selected",true);
+        jQuery("form#search-using-magic-fields-<?php echo $this->number; ?> select.post_type").change();
+        jQuery("form#search-using-magic-fields-<?php echo $this->number; ?> select.post_type").parent("div").css("display","none");
+    }
 });
 </script>
 <?php
@@ -328,6 +335,12 @@ EOD
             # add the post_content field giving it a special name since it requires special handling
             $fields['pst-std-post_content'] 
                 = (object) array( 'label' => 'Post Content', 'type' => 'multiline', 'count' => $type->count );
+            $sql = <<<EOD
+                SELECT COUNT(*) FROM $wpdb->posts p
+                    WHERE p.post_type = "$name" AND p.post_status = "publish" AND p.post_author IS NOT NULL
+EOD;
+            $fields['pst-std-post_author']
+                = (object) array( 'label' => 'Author', 'type' => 'author', 'count' => $wpdb->get_var( $sql ) );
             $previous = !empty( $instance['order-' . $name] ) ? explode( ';', $instance['order-' . $name] ) : array();
             $current = array_keys( $fields );
             #error_log( '##### Search_Using_Magic_Fields_Widget::form():$current=' . print_r( $current, true ) );
@@ -351,7 +364,7 @@ EOD
         <?php if ( $selected && in_array( $meta_key, $selected ) ) { echo ' checked'; } ?>>
     <input type="checkbox" id="<?php echo $this->get_field_id( 'show-' . $name ); ?>"
         name="<?php echo $this->get_field_name( 'show-' . $name ); ?>[]"
-        <?php if ( $field->type !== 'multiline' || $field->type !== 'markdown_editor' ) {
+        <?php if ( $field->type !== 'multiline' && $field->type !== 'markdown_editor' ) {
             echo 'class="scpbcfw-select-content-macro-display-field"'; } ?>
         value="<?php echo $meta_key; ?>" <?php if ( $show_selected && in_array( $meta_key, $show_selected ) ) { echo ' checked'; } ?>
         <?php if ( ( $instance && !isset( $instance['enable_table_view_option'] ) ) || $field->type === 'multiline'
@@ -582,6 +595,7 @@ EOD
         $fields = $wpdb->get_results( 'SELECT name, type, label FROM ' . MF_TABLE_CUSTOM_FIELDS
             . " WHERE post_type = '$_REQUEST[post_type]' ORDER BY custom_group_id, display_order", OBJECT_K );
         $fields['pst-std-post_content'] = (object) array( 'type' => 'multiline', 'label' => 'Post Content' );
+        $fields['pst-std-post_author' ] = (object) array( 'type' => 'author',    'label' => 'Author'       );
         foreach ( $selected as $meta_key ) {
             #error_log( '##### $meta_key=' . $meta_key );
             if ( !array_key_exists( $meta_key, $fields ) ) { continue; }
@@ -603,6 +617,26 @@ EOD
 <?php
                 continue;
             }
+            if ( $field->type === 'author' ) {
+                # use author display name in place of author id
+                $results = $wpdb->get_results( <<<EOD
+                    SELECT p.post_author, u.display_name, COUNT(*) count FROM $wpdb->posts p, $wpdb->users u
+                        WHERE p.post_author = u.ID AND p.post_type = "$_REQUEST[post_type]" AND p.post_status = "publish"
+                            AND p.post_author IS NOT NULL GROUP BY p.post_author
+EOD
+                    , OBJECT );
+                foreach ( $results as $result ) {
+?>
+<input type="checkbox" id="<?php echo $meta_key ?>" name="<?php echo $meta_key ?>[]"
+    value="<?php echo $result->post_author; ?>"> <?php echo $result->display_name . " ($result->count)"; ?><br>
+<?php
+                }
+?>
+</div>
+</div>
+<?php
+                continue;
+            }   # if ( $meta_key === 'pst-std-post_author' ) {
             $results = $wpdb->get_results( <<<EOD
                 SELECT meta_value, COUNT(*) count FROM
                     ( SELECT distinct m.meta_value, m.post_id FROM $wpdb->postmeta m, $wpdb->posts p
@@ -818,7 +852,8 @@ EOD
         #error_log( '##### filter:posts_where:$where=' . $where );
         # first do custom fields
         $non_field_keys = array( 'magic_fields_search_form', 'magic_fields_search_widget_option',
-            'magic_fields_search_widget_number', 'magic-fields-search-and-or', 'magic-fields-show-using-macro', 'post_type' );
+            'magic_fields_search_widget_number', 'magic-fields-search-and-or', 'magic-fields-show-using-macro', 'post_type',
+            'paged' );
         $sql = '';
         foreach ( $_REQUEST as $key => $values ) {
             if ( in_array( $key, $non_field_keys ) ) { continue; }
@@ -848,7 +883,7 @@ EOD
                     continue;
                 }
                  if ( $value !== $values[0] ) { $sql .= ' OR '; }
-                $sql .= "( w.meta_key = '$key' AND w.meta_value LIKE '%$value%' )";
+                $sql .= $wpdb->prepare( "( w.meta_key = %s AND w.meta_value LIKE %s )", $key, "%$value%" );
             }   # foreach ( $values as $value ) {
             if ( $sql3 ) {
                 if ( substr_compare( $sql, 'WHERE ( ', -8, 8 ) == 0 ) { $sql .= $sql3; }
@@ -896,12 +931,12 @@ EOD
         $ids = Search_Using_Magic_Fields_Widget::join_arrays( $and_or, $ids0, $ids1 );
         if ( array_key_exists( 'pst-std-post_content', $_REQUEST ) && $_REQUEST['pst-std-post_content'] ) {
             #&& $_REQUEST['pst-std-post_content'] != '*enter search value*' ) {
-            $sql = <<<EOD
-                SELECT ID FROM $wpdb->posts WHERE post_type = "$_REQUEST[post_type]" AND post_status = "publish"
-                    AND ( post_content  LIKE "%{$_REQUEST['pst-std-post_content']}%"
-                        OR post_title   LIKE "%{$_REQUEST['pst-std-post_content']}%"
-                        OR post_excerpt LIKE "%{$_REQUEST['pst-std-post_content']}%" )
-EOD;
+            $sql = $wpdb->prepare( <<<EOD
+                SELECT ID FROM $wpdb->posts WHERE post_type = %s AND post_status = "publish"
+                    AND ( post_content LIKE %s OR post_title LIKE %s OR post_excerpt LIKE %s )
+EOD
+                , $_REQUEST[post_type], "%{$_REQUEST['pst-std-post_content']}%", "%{$_REQUEST['pst-std-post_content']}%",
+                "%{$_REQUEST['pst-std-post_content']}%" );
             $ids2 = $wpdb->get_col( $sql );
             #error_log( '##### filter:posts_where:post_content $sql=' . $sql );
             if ( $and_or == 'AND' && !$ids2 ) { return ' AND 1 = 2 '; }
@@ -909,6 +944,18 @@ EOD;
             $ids2 = FALSE;
         }
         $ids = Search_Using_Magic_Fields_Widget::join_arrays( $and_or, $ids, $ids2 );
+        # filter on post_author
+        if ( array_key_exists( 'pst-std-post_author', $_REQUEST ) && $_REQUEST['pst-std-post_author'] ) {
+            $sql = "SELECT ID FROM $wpdb->posts WHERE post_type = '$_REQUEST[post_type]' AND post_status = 'publish' "
+                . 'AND post_author IN ( ' . implode( ',', $_REQUEST['pst-std-post_author'] ) . ' )';
+EOD;
+            $ids4 = $wpdb->get_col( $sql );
+            if ( $and_or == 'AND' && !$ids4 ) { return ' AND 1 = 2 '; }
+        } else {
+            $ids4 = FALSE;
+        }
+        $ids = Search_Using_Magic_Fields_Widget::join_arrays( $and_or, $ids, $ids4 );
+        if ( $and_or == 'AND' && $ids !== FALSE && !$ids ) { return ' AND 1 = 2 '; }        
         if ( is_array ( $ids ) ) {
             if ( $ids ) {
                 $where = ' AND ID IN ( ' . implode( ',', $ids  ) . ' ) ';
@@ -916,7 +963,8 @@ EOD;
                 $where = ' AND 1 = 2 ';
             }
         } else {
-            $where = " AND ( post_type = '$_REQUEST[post_type]' AND post_status = 'publish' ) ";
+            #$where = " AND ( post_type = '$_REQUEST[post_type]' AND post_status = 'publish' ) ";
+            $where = ' AND 1 = 2 ';
         }
         #error_log( '##### filter:posts_where:$where=' . $where );
         return $where;
@@ -924,8 +972,20 @@ EOD;
     # add null 'query_string' filter to force parse_str() call in WP::build_query_string() - otherwise name gets set ? TODO: why?
     add_filter( 'query_string', function( $arg ) { return $arg; } );
     if ( isset( $_REQUEST['magic-fields-show-using-macro'] ) && $_REQUEST['magic-fields-show-using-macro'] === 'use macro' ) {
+        # for alternate output format do not page output
+        add_filter( 'post_limits', function( $limit, &$query ) {
+            if ( !$query->is_main_query() ) { return $limit; }
+            return ' ';
+        }, 10, 2 );
         add_action( 'wp_enqueue_scripts', function() {
-            wp_enqueue_style( 'search_results_table', plugins_url( 'search-results-table.css', __FILE__ ) );
+            # use post type specific css file if it exists otherwise use the default css file
+            if ( file_exists( dirname( __FILE__ ) . "/search-results-table-$_REQUEST[post_type].css") ) {
+                wp_enqueue_style( 'search_results_table', plugins_url( "search-results-table-$_REQUEST[post_type].css",
+                  __FILE__ ) );
+            } else {
+                wp_enqueue_style( 'search_results_table', plugins_url( 'search-results-table.css',
+                  __FILE__ ) );
+            }
         } );
         add_action( 'template_redirect', function() {
             global $wp_query;
@@ -953,6 +1013,8 @@ EOD;
                 if ( substr_compare( $field, 'tax-cat-', 0, 8, false ) === 0
                     || substr_compare( $field, 'tax-tag-', 0, 8, false ) === 0 ) {
                     return substr( $field, 8 );
+                } else if ( $field === 'pst-std-post_author' ) {
+                    return '__post_author';
                 } else if ( substr_compare( $field, 'pst-std-', 0, 8, false ) === 0 ) {
                     return false;
                 } else {
