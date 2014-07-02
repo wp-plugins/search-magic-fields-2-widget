@@ -8,20 +8,20 @@ table.scpbcfw-result-table {
     margin:0px auto;
 }
 
-table.scpbcfw-result-table tr:nth-child(odd) {
-    background-color:rgb(232,232,232);
+table.scpbcfw-result-table tr:nth-child(even) {
+    background-color:rgb(192,192,192);
 }
 
 table.scpbcfw-result-table th, table.scpbcfw-result-table td {
-    border:1px solid black;
-}
-
-table.scpbcfw-result-table th, table.scpbcfw-result-table td {
+    border:2px solid black;
     padding:5px;
 }
 
 table.scpbcfw-result-table th {
-    background-color:rgb(48,48,48);
-    color:white;
+    background-color:rgb(128,128,128);
+    background-image:url(data:image/gif;base64,R0lGODlhFQAJAIAAACMtMP///yH5BAEAAAEALAAAAAAVAAkAAAIXjI+AywnaYnhUMoqt3gZXPmVg94yJVQAAOw==);
+    background-position:100% 50%;
+    background-repeat:no-repeat;
+    color:black;
     text-align:center;
 }

@@ -90,7 +90,8 @@ class Magic_Fields_2_Toolkit_Dumb_Shortcodes {
                 # first separate field specifier into path components
                 $names = explode( '.', $the_name, 2 );
                 # do first path component
-                $field = $names[0];
+                # because the wordpress editor seems to insert noise spaces trim the component 
+                $field = trim( $names[0] );
                 if ( !preg_match( '/((\*_\*)|([\w-]+(\*)?))(<(\*|[\w\s]+)((,|><)(\*|\d+))?>)?(g|f)?(:((\*?-?[a-zA-Z0-9_]+),?)+)?/',
 					$field, $matches ) || $matches[0] != $field ) {
 					#error_log( '##### $show_custom_field:$matches=' . print_r( $matches, true ) );
@@ -257,6 +258,19 @@ class Magic_Fields_2_Toolkit_Dumb_Shortcodes {
                                                 : get_the_title( $post_id ) ), $field, ( $url_to_link_available ? 'related_type'
                                                 : 'textbox' ), $filter, $before, $after, $separator );
                                             $label = "Post";
+                                        } else if ( $field == '__post_author' ) {
+                                            # handle the psuedo field __post_author which may be linkable
+                                            $author = $wpdb->get_results( <<<EOD
+                                                SELECT u.ID, u.display_name FROM $wpdb->users u, $wpdb->posts p
+                                                    WHERE p.ID = "$post_id" AND u.ID = p.post_author
+EOD
+                                                , OBJECT );
+                                            # TODO author id and display name
+                                            $url_to_link_available = in_array( 'url_to_link', explode( ';', $filter ) );
+                                            $field_value .= $wrap_value( ( $url_to_link_available ? $author[0]->ID
+                                                : $author[0]->display_name ), $field, ( $url_to_link_available ? 'author'
+                                                : 'textbox' ), $filter, $before, $after, $separator );
+                                            $label = "Author";
 										} else if ( ( $terms = get_the_terms( $post_id, $field ) ) && is_array( $terms ) ) {
 											foreach ( wp_list_pluck( $terms, 'name' ) as $term ) {
 												$field_value .= $wrap_value( $term, $field, 'taxonomy', $filter, $before, $after,
@@ -502,12 +516,21 @@ class Magic_Fields_2_Toolkit_Dumb_Shortcodes {
 
 new Magic_Fields_2_Toolkit_Dumb_Shortcodes();
 
+# url_to_link() is a filter that wraps a linkable value with an <a> html element
+
 function url_to_link( $value, $field, $type ) {
+    global $wpdb;
     if ( ( $type === 'related_type' || $type === 'alt_related_type' ) && is_numeric( $value ) ) {
         $value = '<a href="' . get_permalink( $value ) . '">' . get_the_title ( $value ) . '</a>';
-    }
-    if ( ( $type === 'image' || $type === 'image_media' ) && is_string( $value ) && strpos( $value, 'http' ) === 0 ) {
+    } else if ( ( $type === 'image' || $type === 'image_media' ) && is_string( $value ) && strpos( $value, 'http' ) === 0 ) {
         $value = '<a href="' . $value . '">' . $value . '</a>';
+    } else if ( $type === 'author' ) {
+        $author = $wpdb->get_results( "SELECT u.display_name, u.user_url FROM $wpdb->users u WHERE u.ID = '$value'", OBJECT );
+        if ( $author[0]->user_url ) {
+            $value = '<a href="' . $author[0]->user_url . '">' . $author[0]->display_name . '</a>';
+        } else {
+            $value = $author[0]->display_name;
+        }
     }
     return $value;
 }
@@ -528,4 +551,11 @@ function url_to_media( $value, $field, $type, $classes, $group_index, $field_ind
     return $value;
 }
 
+function media_url_to_link( $value, $field, $type ) {
+    if ( $type === 'alt_embed' || $type === 'alt_video' || $type === 'alt_audio' || $type === 'alt_image' ) {
+        return '<a href="' . $value . '">' . $value . '</a>';
+    }
+    return $value;
+}
+    
 ?>

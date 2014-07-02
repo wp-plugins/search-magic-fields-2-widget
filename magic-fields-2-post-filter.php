@@ -29,7 +29,8 @@ trait Magic_Fields_2_Toolkit_Post_Filters {
             #error_log( '##### Magic_Fields_2_Toolkit_Post_Filters::get_posts_with_spec:$includes=' . print_r( $includes, TRUE ) );
             return $includes;
         }
-        if ( !preg_match( '/^(\w+)(:((((\w+):(((-)?\w+)(,)?)+)(;)?)+))?(#(\d+))?$/', $spec, $matches ) ) { return array(); };
+        #if ( !preg_match( '/^(\w+)(:((((\w+):(((-)?\w+)(,)?)+)(;)?)+))?(#(\d+))?$/', $spec, $matches ) ) { return array(); };
+        if ( !preg_match( '/^([a-z_-]+)(:(((([a-z_-]+):(((-)?[a-z_-]+)(,)?)+)(;)?)+))?(#(\d+))?$/', $spec, $matches ) ) { return array(); };
         # this is a post specifier of the form - post_type:taxonomy1:tag1,tag2,-tag3;taxonomy2:tag4,-tag5,tag6,tag7 ...
         #error_log( '##### Magic_Fields_2_Toolkit_Post_Filters::get_posts_with_spec:$matches=' . print_r( $matches, TRUE ) );
         $post_type = $matches[1];
@@ -56,7 +57,7 @@ trait Magic_Fields_2_Toolkit_Post_Filters {
             # remove - from exclude tags
             $exclude_tags = array_map( function( $value ) { return substr( $value, 1 ); }, $exclude_tags );
             #error_log( '##### Magic_Fields_2_Toolkit_Post_Filters::get_posts_with_spec:$include_tags=' . print_r( $include_tags, TRUE ) );
-            #rror_log( '##### Magic_Fields_2_Toolkit_Post_Filters::get_posts_with_spec:$exclude_tags=' . print_r( $exclude_tags, TRUE ) );
+            #error_log( '##### Magic_Fields_2_Toolkit_Post_Filters::get_posts_with_spec:$exclude_tags=' . print_r( $exclude_tags, TRUE ) );
             $include_exclude_tags = array( $include_tags, $exclude_tags );
             foreach ( $include_exclude_tags as &$tags ) {
                 if ( !$tags ) { continue; }
