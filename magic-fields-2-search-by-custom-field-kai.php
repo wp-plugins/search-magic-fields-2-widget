@@ -4,7 +4,7 @@
  * Plugin URI:    http://magicfields17.wordpress.com/magic-fields-2-search-0-4-1/
  * Description:   Widget for searching Magic Fields 2 custom fields and custom taxonomies and also post_content.
  * Documentation: http://magicfields17.wordpress.com/magic-fields-2-search-0-4-1/
- * Version:       0.4.5.3
+ * Version:       0.4.6
  * Author:        Magenta Cuda (PHP), Black Charger (JavaScript)
  * Author URI:    http://magentacuda.wordpress.com
  * License:       GPL2
@@ -68,15 +68,16 @@ class Search_Using_Magic_Fields_Widget extends WP_Widget {
     const DEFAULT_CONTENT_MACRO = <<<'EOD'
 <div style="width:99%;overflow:auto;">
 <div class="scpbcfw-result-container"$#table_width#>
-<table class="scpbcfw-result-table">
+<table class="scpbcfw-result-table tablesorter">
 [show_custom_field post_id="$#a_post#" field="__post_title;$#fields#"
     before="<span style='display:none;'>"
     after="</span>"
     field_before="<th class='scpbcfw-result-table-head-<!--$field-->' style='padding:5px;'><!--$Field-->"
     field_after="</th>
-    post_before="<tr>"
-    post_after="</tr>"
+    post_before="<thead><tr>"
+    post_after="</tr></thead>"
 ]
+<tbody>
 [show_custom_field post_id="$#posts#" field="__post_title;$#fields#"
     separator=", "
     field_before="<td class='scpbcfw-result-table-detail-<!--$field-->' style='padding:5px;'>"
@@ -85,6 +86,7 @@ class Search_Using_Magic_Fields_Widget extends WP_Widget {
     post_after="</tr>"
     filter="url_to_link;media_url_to_link"
 ]
+</tbody>
 </table>
 </div>
 </div>
@@ -1042,7 +1044,19 @@ $macro
 EOD;
             # error_log( '##### action:template_redirect():$content=' . print_r( $content,  true ) );
             # finally output all the HTML
+            # first do the header
+            wp_enqueue_script( 'jquery' );
+            wp_enqueue_script( 'jquery.tablesorter.min', plugins_url( 'jquery.tablesorter.min.js', __FILE__ ),
+                array( 'jquery' ) );
+            add_action( 'wp_head', function () {
+?>
+<script type="text/javascript">
+    jQuery(document).ready(function(){jQuery("table.tablesorter").tablesorter();}); 
+</script>
+<?php
+            });
             get_header();
+            # then do the body content
             echo do_shortcode( $content );
             get_footer();
             exit();

@@ -3,7 +3,7 @@ Contributors: Magenta Cuda
 Tags: search, custom fields
 Requires at least: 3.6
 Tested up to: 3.9
-Stable tag: 0.4.5.3
+Stable tag: 0.4.6
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -24,6 +24,10 @@ Yes.
 = Where is the documentation? =
 [http://magicfields17.wordpress.com/magic-fields-2-search-0-4-1/](http://magicfields17.wordpress.com/magic-fields-2-search-0-4-1/).
 
+= After upgrading to version 0.4.6 the search results table of post is not sortable. =
+
+Version 0.4.6 has a new default content macro for sortable tables. However, the toolkit will not automatically replace an existing content macro - because you may have customized it. However, you can restore the default content macro by completely erasing the content macro definition.
+   
 == Screenshots ==
 1. The Adminstrator's Interface for Field Selection.
 2. The Adminstrator's Interface for Settings.
@@ -32,6 +36,8 @@ Yes.
 5. The User's Interface for Settings.
 
 == Changelog ==
+= 0.4.6 =
+* The search results table of posts is now a sortable table. Note that this requires a manual upgrade of search widget's content macro.
 = 0.4.5.3 =
 * fix pagination bug for search results output
 * added search by post author
@@ -52,6 +58,8 @@ Yes.
 * Initial release.
 
 == Upgrade Notice ==
+= 0.4.6 =
+* The search results table of posts is now a sortable table. Note that this requires a manual upgrade of search widget's content macro.
 = 0.4.5.3 =
 * fix pagination bug for search results output
 * added search by post author
