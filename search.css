@@ -1,0 +1,67 @@
+form.scpbcfw-search-fields-form{
+    width:95%;
+    padding:10px;margin:5px;
+    border:2px solid black;
+    border-radius:7px;
+    background-color:#e8e8e8;
+}
+
+form.scpbcfw-search-fields-form div.magic-field-parameter{
+    padding:5px 10px;
+    border:2px solid black;
+    border-radius:7px;
+    margin:5px;
+}
+
+form.scpbcfw-search-fields-form div.magic-field-parameter select.post_type{
+    border-radius:7px;
+}
+
+div#scpbcfw-search-fields-help{
+    background-color:#c0c0c0;
+    width:25%;
+    float:right;
+    border:2px solid black;
+    border-radius:7px;
+    text-align:center;
+    margin:5px;
+}
+
+div.scpbcfw-search-fields{
+    padding:5px 10px;
+    border:2px solid black;
+    border-radius:7px;
+    margin:10px 5px;
+}
+
+span.scpbcfw-search-fields-field-label{
+    font-size=16px;
+    font-weight:bold;
+    float:left;
+}
+
+button.scpbcfw-display-button{
+    font-size:10px;
+    font-weight:bold;
+    padding:3px;
+    border:1px solid black;
+    border-radius:7px;
+    float:right;
+}
+
+input.scpbcfw-search-fields-for-input{
+    width:90%;
+}
+
+div.scpbcfw-search-fields-and-or-box{
+    padding:5px;
+    border:2px solid black;
+    border-radius:7px;
+    margin:10px 5px;
+}
+
+input#magic-fields-search{
+    color:black;
+    border:2px solid black;
+    border-radius:7px;
+}
