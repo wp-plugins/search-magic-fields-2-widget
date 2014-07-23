@@ -1,14 +1,4 @@
 <?php
-/*
- * Plugin Name:   Search Magic Fields 2 Widget
- * Plugin URI:    http://magicfields17.wordpress.com/magic-fields-2-search-0-4-1/
- * Description:   Widget for searching Magic Fields 2 custom fields and custom taxonomies and also post_content.
- * Documentation: http://magicfields17.wordpress.com/magic-fields-2-search-0-4-1/
- * Version:       0.4.6
- * Author:        Magenta Cuda (PHP), Black Charger (JavaScript)
- * Author URI:    http://magentacuda.wordpress.com
- * License:       GPL2
- */
 /*  
     Copyright 2013  Magenta Cuda
 
@@ -25,6 +15,7 @@
     along with this program; if not, write to the Free Software
     Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
+ 
 /*
     I have decided to unbundle the search widget from my Magic Fields 2 Toolkit
     as it is independently viable and since I will soon end active development 
@@ -36,7 +27,6 @@
  */
  
 list( $major, $minor ) = sscanf( phpversion(), '%D.%D' );
-#error_log( '##### Magic_Fields_2_Toolkit_Init::__construct():phpversion()=' . $major . ',' . $minor );
 $tested_major = 5;
 $tested_minor = 4;
 if ( !( $major > $tested_major || ( $major == $tested_major && $minor >= $tested_minor ) ) ) {
@@ -60,7 +50,7 @@ if ( is_admin() ) {
 
 class Search_Using_Magic_Fields_Widget extends WP_Widget {
     const GET_FORM_FOR_POST_TYPE = 'get_form_for_post_type';         # the AJAX action to get the form for post type selected by user
-    const SQL_LIMIT = '16';                                          # maximum number of items to show per custom field
+    const SQL_LIMIT = '25';                                          # maximum number of items to show per custom field
     #const SQL_LIMIT = '2';                                          # TODO: this limit for testing only replace with above
     const OPTIONAL_TEXT_VALUE_SUFFIX = '-mf2tk-optional-text-value'; # suffix for additional text input for a custom field
     const OPTIONAL_MINIMUM_VALUE_SUFFIX = '-stcfw-minimum-value';    # suffix to append to optional minimum/maximum value text 
@@ -102,20 +92,18 @@ EOD;
     
 	public function widget( $args, $instance ) {
         global $wpdb;
-        #error_log( '##### Search_Using_Magic_Fields_Widget::widget():$this='     . print_r( $this,     true ) );
-        #error_log( '##### Search_Using_Magic_Fields_Widget::widget():$args='     . print_r( $args,     true ) );
-        #error_log( '##### Search_Using_Magic_Fields_Widget::widget():$instance=' . print_r( $instance, true ) );
         extract( $args );
         # initially show only post type selection form after post type selected use AJAX to retrieve post specific form
 ?>
-<form id="search-using-magic-fields-<?php echo $this->number; ?>" method="get" action="<?php echo esc_url( home_url( '/' ) ); ?>">
+<form id="search-using-magic-fields-<?php echo $this->number; ?>" class="scpbcfw-search-fields-form" method="get"
+    action="<?php echo esc_url( home_url( '/' ) ); ?>">
 <input id="magic_fields_search_form" name="magic_fields_search_form" type="hidden" value="magic-fields-search">
 <input id="magic_fields_search_widget_option" name="magic_fields_search_widget_option" type="hidden"
     value="<?php echo $this->option_name; ?>">
 <input id="magic_fields_search_widget_number" name="magic_fields_search_widget_number" type="hidden"
     value="<?php echo $this->number; ?>">
 <h2>Search:</h2>
-<div class="magic-field-parameter" style="padding:5px 10px;border:2px solid black;margin:5px;">
+<div class="magic-field-parameter">
 <h3>post type:</h3>
 <select id="post_type" name="post_type" class="post_type" required style="width:100%;">
 <option value="no-selection">--select post type--</option>
@@ -124,7 +112,6 @@ EOD;
         $selected_types = '"' . implode( '", "', array_diff( array_keys( $instance ),
             array( 'maximum_number_of_items', 'set_is_search', 'enable_table_view_option', 'table_shortcode', 'table_width' ) ) )
             . '"';
-        #error_log( '##### Search_Using_Magic_Fields_Widget::widget():$selected_types=' . print_r( $selected_types, true ) );
         $SQL_LIMIT = self::SQL_LIMIT;
         $types = $wpdb->get_results( <<<EOD
             SELECT post_type, COUNT(*) count FROM $wpdb->posts
@@ -132,7 +119,6 @@ EOD;
                 GROUP BY post_type ORDER BY count DESC LIMIT $SQL_LIMIT
 EOD
             , OBJECT_K );
-        #error_log( '##### Search_Using_Magic_Fields_Widget::form():$types=' . print_r( $types, TRUE ) );
         foreach ( $types as $name => $type ) {
 ?>      
 <option class="real_post_type" value="<?php echo $name; ?>"><?php echo "$name ($type->count)"; ?></option>
@@ -143,7 +129,7 @@ EOD
 </div>
 <div id="magic-fields-parameters"></div>
 <div id="magic-fields-submit-box" style="display:none">
-<div style="border:2px solid black;padding:5px;margin:5px;border-radius:7px;">
+<div class="scpbcfw-search-fields-and-or-box">
 <div style="text-align:center;margin:10px;">
 Results should satisfy<br> 
 <input type="radio" name="magic-fields-search-and-or" value="and" checked><strong>All</strong>
@@ -164,7 +150,7 @@ Show search results in alternate format:
 ?>
 </div>
 <div style="text-align:right;">
-<input id="magic-fields-search" type="submit" value="Start Search" style="color:black;border:2px solid black;" disabled>
+<input id="magic-fields-search" type="submit" value="Start Search" disabled>
 &nbsp;&nbsp;
 </div>
 </div>
@@ -200,9 +186,6 @@ jQuery(document).ready(function(){
 	}   # public function widget( $args, $instance ) {
     
     public function update( $new, $old ) {
-        #error_log( '##### Search_Using_Magic_Fields_Widget::update():$_POST=' . print_r( $_POST, TRUE ) );    
-        #error_log( '##### Search_Using_Magic_Fields_Widget::update():$old=' . print_r( $old, TRUE ) );
-        #error_log( '##### Search_Using_Magic_Fields_Widget::update():$new=' . print_r( $new, TRUE ) );
         #return array_map( function( $values ) {
         #    return is_array( $values) ? array_map( strip_tags, $values ) : strip_tags( $values );
         #}, $new );
@@ -213,10 +196,13 @@ jQuery(document).ready(function(){
     
     public function form( $instance ) {
         global $wpdb;
-        #error_log( '##### Search_Using_Magic_Fields_Widget::form():$instance=' . print_r( $instance, true ) );
         # show the configuration form to select custom fields for the given post type
 ?>
-<h4>Select Search Fields and Content Macro Display Fields for:</h4>
+<div style="background-color:#c0c0c0;width:25%;float:right;border:2px solid black;border-radius:7px;text-align:center;margin:5px;">
+<a href="http://magicfields17.wordpress.com/magic-fields-2-search-0-4-1/#administrator" target="_blank">help</a>
+</div>
+<h4 style="display:inline;">Select Search Fields and Content Macro Display Fields for:</h4>
+<p style="clear:both;margin:0px;">
 <?php
         # use all Magic Fields 2 custom post types and the WordPress built in "post" and "page" types
         $mf2_types = '"' . implode( '", "', $wpdb->get_col( 'SELECT type FROM ' . MF_TABLE_POSTTYPES ) ) . '", "post", "page"'; 
@@ -227,7 +213,6 @@ jQuery(document).ready(function(){
                 GROUP BY post_type ORDER BY count DESC LIMIT $SQL_LIMIT
 EOD
             , OBJECT_K );
-        #error_log( '##### Search_Using_Magic_Fields_Widget::form():$types=' . print_r( $types, TRUE ) );
         # First get the number of posts tagged by post type and taxonomy, since a single post tagged with multiple tags
         # should be counted only once the sql is somewhat complicated
         $db_taxonomies = $wpdb->get_results( <<<EOD
@@ -240,12 +225,9 @@ EOD
                 GROUP BY post_type, taxonomy
 EOD
         , OBJECT );
-        #error_log( '##### Search_Using_Magic_Fields_Widget::form():$db_taxonomies=' . print_r( $db_taxonomies, TRUE ) );
         $wp_taxonomies = get_taxonomies( '', 'objects' );
-        #error_log( '##### Search_Using_Magic_Fields_Widget::form():$wp_taxonomies=' . print_r( $wp_taxonomies, TRUE ) );
         # do all post types
         foreach ( $types as $name => $type ) {
-            #error_log( '##### Search_Using_Magic_Fields_Widget::form():$name=' . $name );
             $selected      = $instance[$name];
             $show_selected = $instance['show-' . $name];
 ?>
@@ -254,12 +236,6 @@ EOD
 <button class="scpbcfw-display-button" style="font-size:12px;font-weight:bold;padding:3px;float:right;">Open</button>
 <div style="clear:both;"></div>
 <div class="scpbcfw-search-field-values" style="display:none;">
-<style scoped>
-div.mf2tk-selectable-field-after{height:2px;background-color:white;}
-div.mf2tk-selectable-field-after.mf2tk-hover{background-color:black;}
-div.mf2tk-selectable-taxonomy-after{height:2px;background-color:white;}
-div.mf2tk-selectable-taxonomy-after.mf2tk-hover{background-color:black;}
-</style>
 <!-- before drop point -->
 <div><div class="mf2tk-selectable-taxonomy-after"></div></div>
 <?php
@@ -278,22 +254,14 @@ div.mf2tk-selectable-taxonomy-after.mf2tk-hover{background-color:black;}
                 if ( !$count ) { $value = str_replace( 'tax-tag-', '', $value ); }
                 return $value;
             }, $previous );
-            #error_log( '##### Search_Using_Magic_Fields_Widget::form():$previous=' . print_r( $previous, true ) );
             $current = array_keys( $the_taxonomies );
-            #error_log( '##### Search_Using_Magic_Fields_Widget::form():$current=' . print_r( $current, true ) );
             $previous = array_intersect( $previous, $current );
-            #error_log( '##### Search_Using_Magic_Fields_Widget::form():$previous=' . print_r( $previous, true ) );
             $new = array_diff( $current, $previous );
-            #error_log( '##### Search_Using_Magic_Fields_Widget::form():$new=' . print_r( $new, true ) );
             $current = array_merge( $previous, $new );
-            #error_log( '##### Search_Using_Magic_Fields_Widget::form():$current=' . print_r( $current, true ) );
             foreach ( $current as $tax_name ) {
                 $db_taxonomy =& $the_taxonomies[$tax_name];
-                #error_log( '##### Search_Types_Custom_Fields_Widget::form():$name=' . $name
                 #    . ', $db_taxonomy=' . print_r( $db_taxonomy, TRUE ) );
                 $wp_taxonomy = $wp_taxonomies[$db_taxonomy->taxonomy];
-                #error_log( '##### $taxonomy=' . print_r( $taxonomy, TRUE ) );
-                #error_log( '##### Search_Types_Custom_Fields_Widget::form():$name=' . $name
                 #    . ', $wp_taxonomy=' . print_r( $wp_taxonomy, TRUE ) );
                 $tax_type = ( $wp_taxonomy->hierarchical ) ? 'tax-cat-' : 'tax-tag-';
                 $tax_label = ( $wp_taxonomy->hierarchical ) ? ' (category)' : ' (tag)';
@@ -333,7 +301,6 @@ div.mf2tk-selectable-taxonomy-after.mf2tk-hover{background-color:black;}
                     GROUP BY name ORDER BY count DESC LIMIT $SQL_LIMIT
 EOD
                 , OBJECT_K );
-            #error_log( '##### Search_Using_Magic_Fields_Widget::form():$fields=' . print_r( $fields, TRUE ) );
             # add the post_content field giving it a special name since it requires special handling
             $fields['pst-std-post_content'] 
                 = (object) array( 'label' => 'Post Content', 'type' => 'multiline', 'count' => $type->count );
@@ -345,13 +312,9 @@ EOD;
                 = (object) array( 'label' => 'Author', 'type' => 'author', 'count' => $wpdb->get_var( $sql ) );
             $previous = !empty( $instance['order-' . $name] ) ? explode( ';', $instance['order-' . $name] ) : array();
             $current = array_keys( $fields );
-            #error_log( '##### Search_Using_Magic_Fields_Widget::form():$current=' . print_r( $current, true ) );
             $previous = array_intersect( $previous, $current );
-            #error_log( '##### Search_Using_Magic_Fields_Widget::form():$previous=' . print_r( $previous, true ) );
             $new = array_diff( $current, $previous );
-            #error_log( '##### Search_Using_Magic_Fields_Widget::form():$new=' . print_r( $new, true ) );
             $current = array_merge( $previous, $new );
-            #error_log( '##### Search_Using_Magic_Fields_Widget::form():$current=' . print_r( $current, true ) );
 ?>
 <!-- before drop point -->
 <div><div class="mf2tk-selectable-field-after"></div></div>
@@ -391,10 +354,10 @@ EOD;
 ?>
 <div style="border:2px solid gray;padding:5px;margin:5px;border-radius:7px;">
 <div style="padding:10px;border:1px solid gray;margin:5px;">
-<input type="number" min="4" max="1024" 
+<input type="number" min="0" max="1024" 
     id="<?php echo $this->get_field_id( 'maximum_number_of_items' ); ?>"
     name="<?php echo $this->get_field_name( 'maximum_number_of_items' ); ?>"
-    value="<?php echo !empty( $instance['maximum_number_of_items'] ) ? $instance['maximum_number_of_items'] : 16; ?>"
+    value="<?php echo isset( $instance['maximum_number_of_items'] ) ? $instance['maximum_number_of_items'] : 16; ?>"
     size="4" style="float:right;text-align:right;">
 Maximum number of items to display per custom field:
 <div style="clear:both;"></div>
@@ -439,10 +402,8 @@ The content macro to use to display the search results:
 <?php 
     if ( !empty( $instance['table_shortcode'] ) ) {
         $macro = $instance['table_shortcode'];
-        #error_log( '##### Search_Using_Magic_Fields_Widget::form():[from $instance]$macro=' . $macro );
     } else {
         $macro = Search_Using_Magic_Fields_Widget::DEFAULT_CONTENT_MACRO;
-        #error_log( '##### Search_Using_Magic_Fields_Widget::form():[from code]$macro=' . $macro );
     }
     $macro = htmlspecialchars( $macro );
     echo $macro;
@@ -515,8 +476,16 @@ add_action( 'widgets_init', function() {
 } );
 
 if ( is_admin() ) {
-    #error_log( '##### add_action( \'wp_ajax_nopriv_'
-    #    . Search_Using_Magic_Fields_Widget::GET_FORM_FOR_POST_TYPE . ', ... )' );
+    add_action('admin_head', function() {
+?>
+<style>
+div.mf2tk-selectable-field-after{height:2px;background-color:white;}
+div.mf2tk-selectable-field-after.mf2tk-hover{background-color:black;}
+div.mf2tk-selectable-taxonomy-after{height:2px;background-color:white;}
+div.mf2tk-selectable-taxonomy-after.mf2tk-hover{background-color:black;}
+</style>
+<?php
+    } );
     # Use the no privilege version also in privileged mode
     add_action( 'wp_ajax_' . Search_Using_Magic_Fields_Widget::GET_FORM_FOR_POST_TYPE, function() {
         do_action( 'wp_ajax_nopriv_' . Search_Using_Magic_Fields_Widget::GET_FORM_FOR_POST_TYPE );
@@ -524,28 +493,26 @@ if ( is_admin() ) {
     # This ajax action will generate and return the search form for the given post type
     add_action( 'wp_ajax_nopriv_' . Search_Using_Magic_Fields_Widget::GET_FORM_FOR_POST_TYPE, function() {
         global $wpdb;
-        #error_log( '##### action:wp_ajax_nopriv_' . Search_Using_Magic_Fields_Widget::GET_FORM_FOR_POST_TYPE . ':$_REQUEST='
-        #    . print_r( $_REQUEST, TRUE ) );
-        #error_log( '##### action:wp_ajax_nopriv_' . Search_Using_Magic_Fields_Widget::GET_FORM_FOR_POST_TYPE . ':$_POST='
-        #    . print_r( $_POST, TRUE ) );
         if ( !isset( $_POST['mf2tk_get_form_nonce'] ) || !wp_verify_nonce( $_POST['mf2tk_get_form_nonce'],
             Search_Using_Magic_Fields_Widget::GET_FORM_FOR_POST_TYPE ) ) {
             error_log( '##### action:wp_ajax_nopriv_' . Search_Using_Magic_Fields_Widget::GET_FORM_FOR_POST_TYPE . ':nonce:die' );
             die;
         }
         $option = get_option( $_REQUEST['magic_fields_search_widget_option'] );
-        #error_log( '##### action:wp_ajax_nopriv_' . Search_Using_Magic_Fields_Widget::GET_FORM_FOR_POST_TYPE . ':$option='
-        #    . print_r( $option, TRUE ) );
         $number = $_REQUEST['magic_fields_search_widget_number'];
         $selected = $option[$number][$_REQUEST['post_type']];
-        $SQL_LIMIT = $option[$number]['maximum_number_of_items'];
-        #error_log( '##### action:wp_ajax_nopriv_' . Search_Using_Magic_Fields_Widget::GET_FORM_FOR_POST_TYPE . '():$selected='
-        #    . print_r( $selected, TRUE ) );
+        $SQL_LIMIT = (integer) $option[$number]['maximum_number_of_items'];  
+?>
+<div id="scpbcfw-search-fields-help">
+<a href="http://magicfields17.wordpress.com/magic-fields-2-search-0-4-1/#user" target="_blank">help</a>
+</div>
+<h4 style="display:inline;">Please specify search conditions:<h4>
+<p style="clear:both;margin:0px;">
+<?php    
         # first do selected taxonomies
         $taxonomies = array();
         $wp_taxonomies = get_taxonomies( '', 'objects' );
         foreach ( $wp_taxonomies as &$taxonomy ) {
-            #error_log( '##### $taxonomy=' . print_r( $taxonomy, TRUE ) );
             if ( !in_array( $_REQUEST['post_type'], $taxonomy->object_type ) ) { continue; }
             $tax_name = ( $taxonomy->hierarchical ? 'tax-cat-' : 'tax-tag-' ) . $taxonomy->name;
             if ( in_array( $tax_name, $selected ) ) { $taxonomies[$tax_name] =& $taxonomy; }
@@ -554,7 +521,6 @@ if ( is_admin() ) {
         foreach ( $selected as $tax_name ) {
             if ( !array_key_exists( $tax_name, $taxonomies ) ) { continue; }
             $taxonomy =& $taxonomies[$tax_name];
-            #error_log( '##### $taxonomy=' . print_r( $taxonomy, TRUE ) );
             $tax_type = ( $taxonomy->hierarchical ) ? 'tax-cat-' : 'tax-tag-';
             $results = $wpdb->get_results( <<<EOD
                 SELECT x.term_taxonomy_id, t.name, COUNT(*) count
@@ -564,12 +530,10 @@ if ( is_admin() ) {
                         GROUP BY x.term_taxonomy_id ORDER BY count DESC LIMIT $SQL_LIMIT
 EOD
                 , OBJECT );
-            if ( !$results ) { continue; }
-            #error_log( '##### $results=' . print_r( $results, TRUE ) );
 ?>
-<div class="scpbcfw-search-fields" style="padding:5px 10px;border:2px solid black;margin:5px;">
-<span style="font-size=16px;font-weight:bold;float:left;"><?php echo $taxonomy->name ?>:</span>
-<button class="scpbcfw-display-button" style="font-size:12px;font-weight:bold;padding:3px;float:right;">Open</button>
+<div class="scpbcfw-search-fields">
+<span class="scpbcfw-search-fields-field-label"><?php echo $taxonomy->name ?>:</span>
+<button class="scpbcfw-display-button">Open</button>
 <div style="clear:both;"></div>
 <div class="scpbcfw-search-field-values" style="display:none;">
 <?php
@@ -579,12 +543,12 @@ EOD
     value="<?php echo $result->term_taxonomy_id; ?>"><?php echo "$result->name ($result->count)"; ?><br>
 <?php
             }   # foreach ( $results as $result ) {
-            if ( count( $results ) == $SQL_LIMIT ) {
+            if ( count( $results ) === $SQL_LIMIT ) {
                 # too many distinct terms for this custom taxonomy so allow user to also manually enter search value
 ?>
 <input id="<?php $meta_key . Search_Using_Magic_Fields_Widget::OPTIONAL_TEXT_VALUE_SUFFIX; ?>"
     name="<?php echo "{$tax_type}{$taxonomy->name}" . Search_Using_Magic_Fields_Widget::OPTIONAL_TEXT_VALUE_SUFFIX; ?>"
-    class="for-select" type="text" style="width:90%;" placeholder="--Enter Search Value--">
+    class="scpbcfw-search-fields-for-input" type="text" placeholder="--Enter Search Value--">
 <?php
             }
 ?>
@@ -599,20 +563,19 @@ EOD
         $fields['pst-std-post_content'] = (object) array( 'type' => 'multiline', 'label' => 'Post Content' );
         $fields['pst-std-post_author' ] = (object) array( 'type' => 'author',    'label' => 'Author'       );
         foreach ( $selected as $meta_key ) {
-            #error_log( '##### $meta_key=' . $meta_key );
             if ( !array_key_exists( $meta_key, $fields ) ) { continue; }
             $field =& $fields[$meta_key];
 ?>
-<div class="scpbcfw-search-fields" style="padding:5px 10px;border:2px solid black;margin:5px;">
-<span style="font-size=16px;font-weight:bold;float:left;"><?php echo $field->label ?>:</span>
-<button class="scpbcfw-display-button" style="font-size:12px;font-weight:bold;padding:3px;float:right;">Open</button>
+<div class="scpbcfw-search-fields">
+<span class="scpbcfw-search-fields-field-label"><?php echo $field->label ?>:</span>
+<button class="scpbcfw-display-button">Open</button>
 <div style="clear:both;"></div>
 <div class="scpbcfw-search-field-values" style="display:none;">
 <?php
             if ( $field->type === 'multiline' || $field->type === 'markdown_editor' ) {
                 # values are multiline so just let user manually enter search values
 ?>
-<input id="<?php echo $meta_key ?>" name="<?php echo $meta_key ?>" class="for-input" type="text" style="width:90%;"
+<input id="<?php echo $meta_key ?>" name="<?php echo $meta_key ?>" class="scpbcfw-search-fields-for-input" type="text"
     placeholder="--Enter Search Value--">
 </div>
 </div>
@@ -621,16 +584,25 @@ EOD
             }
             if ( $field->type === 'author' ) {
                 # use author display name in place of author id
-                $results = $wpdb->get_results( <<<EOD
+                $results = $wpdb->get_results( $wpdb->prepare( <<<EOD
                     SELECT p.post_author, u.display_name, COUNT(*) count FROM $wpdb->posts p, $wpdb->users u
-                        WHERE p.post_author = u.ID AND p.post_type = "$_REQUEST[post_type]" AND p.post_status = "publish"
-                            AND p.post_author IS NOT NULL GROUP BY p.post_author
+                        WHERE p.post_author = u.ID AND p.post_type = %s AND p.post_status = "publish"
+                            AND p.post_author IS NOT NULL GROUP BY p.post_author ORDER BY count
 EOD
-                    , OBJECT );
+                    , $_REQUEST[post_type] ), OBJECT );
+                $count = -1;
                 foreach ( $results as $result ) {
+                    if ( ++$count === $SQL_LIMIT ) { break; }
 ?>
 <input type="checkbox" id="<?php echo $meta_key ?>" name="<?php echo $meta_key ?>[]"
     value="<?php echo $result->post_author; ?>"> <?php echo $result->display_name . " ($result->count)"; ?><br>
+<?php
+                }
+                if ( $count === $SQL_LIMIT ) {
+?>
+<input type="text" id="pst-std-post_author<?php echo Search_Using_Magic_Fields_Widget::OPTIONAL_TEXT_VALUE_SUFFIX; ?>"
+    name="pst-std-post_author<?php echo Search_Using_Magic_Fields_Widget::OPTIONAL_TEXT_VALUE_SUFFIX; ?>"
+    class="scpbcfw-search-fields-for-input" placeholder="--Enter Search Value--">
 <?php
                 }
 ?>
@@ -639,22 +611,22 @@ EOD
 <?php
                 continue;
             }   # if ( $meta_key === 'pst-std-post_author' ) {
-            $results = $wpdb->get_results( <<<EOD
+            $results = $wpdb->get_results( $wpdb->prepare( <<<EOD
                 SELECT meta_value, COUNT(*) count FROM
                     ( SELECT distinct m.meta_value, m.post_id FROM $wpdb->postmeta m, $wpdb->posts p
-                        WHERE m.post_id = p.ID AND m.meta_key = "$meta_key" AND p.post_type = "$_REQUEST[post_type]" ) d
+                        WHERE m.post_id = p.ID AND m.meta_key = %s AND p.post_type = %s
+                            AND m.meta_value IS NOT NULL AND m.meta_value != '' ) d
                         GROUP BY meta_value ORDER BY count DESC LIMIT $SQL_LIMIT
 EOD
-                , OBJECT_K );
+                , $meta_key, $_REQUEST[post_type] ), OBJECT_K );
             $values = array();   # to be used by serialized fields
             $numeric = TRUE;
             foreach ( $results as $meta_value => $result ) {
                 if ( !$meta_value ) { continue; }
-                #error_log( '##### ' . $meta_key . ': ' . print_r( $result, TRUE ) );
                 if ( $field->type === 'related_type' ) {
                     $value = get_the_title( $meta_value );
                 } else if ( $field->type === 'image_media' ) {
-                    $value = $wpdb->get_col( "SELECT guid FROM $wpdb->posts WHERE ID = '$meta_value'" );
+                    $value = $wpdb->get_col( $wpdb->prepare( "SELECT guid FROM $wpdb->posts WHERE ID = %s", $meta_value ) );
                     if ( $value ) { $value = substr( $value[0], strrpos( $value[0], '/' ) + 1 ); }
                     else { $value = ''; }
                 } else if ( $field->type === 'image' ) {
@@ -664,10 +636,8 @@ EOD
                     || $field->type === 'dropdown' || $field->type === 'alt_dropdown' ) {
                     # These are the serialized fields. Since individual values may be embedded in multiple rows
                     # two passes will be needed - one to accumulate the counts and another to display the counts
-                    #error_log( '##### $type === \'alt_related_type\' $result=' . print_r( $result, TRUE ) );
                     $entries = unserialize( $meta_value );
                     for ( $i = 0; $i < $result->count; $i++ ) { $values = array_merge( $values, $entries ); }
-                    #error_log( '##### $type === \'alt_related_type\' $values=' . print_r( $values, TRUE ) );
                     continue;   # skip display which will be done later on a second pass
                 } else {
                     $value = $meta_value;
@@ -682,13 +652,9 @@ EOD
             }   # foreach ( $results as $result ) {
             # now do second pass on the serialized fields
             if ( $values ) {
-                #error_log( '##### action:wp_ajax_nopriv_' . Search_Using_Magic_Fields_Widget::GET_FORM_FOR_POST_TYPE . ':$values='
-                #    . print_r( $values, TRUE ) );
                 # get count of individual values
                 $values = array_count_values( $values );
                 arsort( $values, SORT_NUMERIC );
-                #error_log( '##### action:wp_ajax_nopriv_' . Search_Using_Magic_Fields_Widget::GET_FORM_FOR_POST_TYPE . ':$values='
-                #    . print_r( $values, TRUE ) );
                 foreach ( $values as $key => $value ) {   # $key is value and $value is count
 ?>
 <input type="checkbox" id="<?php echo $meta_key; ?>" name="<?php echo $meta_key; ?>[]"
@@ -700,13 +666,13 @@ EOD
                     else { echo "$key ($value)<br>"; }
                 }   # foreach ( $values as $key => $value) {
             }   # if ( $values ) {
-            if ( count( $results ) == $SQL_LIMIT && ( $field->type !== 'related_type'
+            if ( count( $results ) === $SQL_LIMIT && ( $field->type !== 'related_type'
                 && $field->type !== 'alt_related_type' && $field->type !== 'image_media' ) ) {
                 # for these types also allow user to manually enter search values
 ?>
 <input id="<?php echo $meta_key . Search_Using_Magic_Fields_Widget::OPTIONAL_TEXT_VALUE_SUFFIX; ?>"
     name="<?php echo $meta_key . Search_Using_Magic_Fields_Widget::OPTIONAL_TEXT_VALUE_SUFFIX; ?>"
-    class="for-select" type="text" style="width:90%;" placeholder="--Enter Search Value--">
+    class="scpbcfw-search-fields-for-input" type="text" placeholder="--Enter Search Value--">
 <?php
             }
             if ( $field->type == 'slider' || $field->type == 'datepicker' || ( $field->type == 'textbox' && $numeric ) ) {
@@ -715,10 +681,10 @@ EOD
 <h4>Range Search</h4>
 <input id="<?php echo $meta_key . Search_Using_Magic_Fields_Widget::OPTIONAL_MINIMUM_VALUE_SUFFIX; ?>"
     name="<?php echo $meta_key . Search_Using_Magic_Fields_Widget::OPTIONAL_MINIMUM_VALUE_SUFFIX; ?>"
-    class="for-select" type="text" style="width:90%;" placeholder="--Enter Minimum Value--">
+    class="scpbcfw-search-fields-for-input" type="text" placeholder="--Enter Minimum Value--">
 <input id="<?php echo $meta_key . Search_Using_Magic_Fields_Widget::OPTIONAL_MAXIMUM_VALUE_SUFFIX; ?>"
     name="<?php echo $meta_key . Search_Using_Magic_Fields_Widget::OPTIONAL_MAXIMUM_VALUE_SUFFIX; ?>"
-    class="for-select" type="text" style="width:90%;" placeholder="--Enter Maximum Value--">
+    class="scpbcfw-search-fields-for-input" type="text" placeholder="--Enter Maximum Value--">
 <?php
             }
 ?>
@@ -776,22 +742,18 @@ jQuery("button.scpbcfw-display-button").click(function(event){
     } );   # add_action( 'wp_ajax_nopriv_' . Search_Using_Magic_Fields_Widget::GET_FORM_FOR_POST_TYPE,
 } else {
     add_action( 'wp_enqueue_scripts', function() {
+        wp_enqueue_style( 'search', plugins_url( 'search.css', __FILE__ ) );
         wp_enqueue_script( 'jquery' );
     } );
     add_action( 'parse_query', function( &$query ) {
         if ( !$query->is_main_query() || !array_key_exists( 'magic_fields_search_form', $_REQUEST ) ) { return; }
-        #error_log( '##### action:parse_query():$_REQUEST=' . print_r( $_REQUEST, true ) );
-        #error_log( '##### action:parse_query():$args=' . print_r( $query, true ) );
         $option = get_option( $_REQUEST['magic_fields_search_widget_option'] );
-        #error_log( '##### action:parse_query():$option=' . print_r( $option, true ) );
         $number = $_REQUEST['magic_fields_search_widget_number'];
         if ( isset( $option[$number]['set_is_search'] ) ) { $query->is_search = true; }
     } );
 	add_filter( 'posts_where', function( $where, &$query ) {
         global $wpdb;
         if ( !$query->is_main_query() || !array_key_exists( 'magic_fields_search_form', $_REQUEST ) ) { return $where; }
-        #error_log( '##### filter:posts_where():$query=' . print_r( $query, true ) );
-        #error_log( '##### filter:posts_where():$_REQUEST=' . print_r( $_REQUEST, true ) );
         $and_or = $_REQUEST['magic-fields-search-and-or'] == 'and' ? 'AND' : 'OR';
         # first get taxonomy name to term_taxonomy_id transalation table in case we need the translations
         $results = $wpdb->get_results( <<<EOD
@@ -804,28 +766,42 @@ EOD
         foreach ( $results as $result ) {
             $term_taxonomy_ids[$result->taxonomy][strtolower( $result->name)] = $result->term_taxonomy_id;
         }
-        #error_log( '##### filter:posts_where:$term_taxonomy_ids=' . print_r( $term_taxonomy_ids, TRUE ) );
+        # first get author name to ID translation table in case we need the translations
+        $results = $wpdb->get_results( $wpdb->prepare( <<<EOD
+            SELECT u.display_name, u.ID FROM $wpdb->users u, $wpdb->posts p
+                WHERE u.ID = p.post_author AND p.post_type = %s GROUP BY u.ID
+EOD
+            , $_REQUEST[post_type] ), OBJECT );
+        $author_ids = array();
+        foreach ( $results as $result ) {
+            $author_ids[strtolower( $result->display_name)] = $result->ID;
+        }
         # merge optional text values into the checkboxes array
         $suffix_len = strlen( Search_Using_Magic_Fields_Widget::OPTIONAL_TEXT_VALUE_SUFFIX );
         foreach ( $_REQUEST as $index => &$request ) {
-            #error_log( '##### filter:posts_where:$index=' . $index );
-            #error_log( '##### filter:posts_where:$request=' . print_r ( $request, TRUE ) );
             if ( $request
                 && substr_compare( $index, Search_Using_Magic_Fields_Widget::OPTIONAL_TEXT_VALUE_SUFFIX, -$suffix_len ) === 0 ) {
-                # using raw user input data directly so we need to be careful - possible sql injection
-                $request = str_replace( '\'', '', $request );
                 $index = substr( $index, 0, strlen( $index ) - $suffix_len );
                 if ( is_array( $_REQUEST[$index] ) || !array_key_exists( $index, $_REQUEST ) ) {
+                    $lowercase_request = strtolower( $request );
                     if ( substr_compare( $index, 'tax-', 0, 4 ) === 0 ) {
                         # for taxonomy values must replace the value with the corresponding term_taxonomy_id
                         $tax_name = substr( $index, 8 );
                         if ( !array_key_exists( $tax_name, $term_taxonomy_ids )
-                            || !array_key_exists( strtolower( $request ), $term_taxonomy_ids[$tax_name] ) ) {
+                            || !array_key_exists( $lowercase_request, $term_taxonomy_ids[$tax_name] ) ) {
                             # kill the original request
                             $request = NULL;
                             continue;
                         }
-                        $request = $term_taxonomy_ids[$tax_name][strtolower( $request )];
+                        $request = $term_taxonomy_ids[$tax_name][$lowercase_request];
+                    } else if ( $index === 'pst-std-post_author' ) {
+                        # for author names must replace the value with the corresponding author ID
+                        if ( !array_key_exists( $lowercase_request, $author_ids ) ) {
+                            # kill the original request
+                            $request = NULL;
+                            continue;
+                        }
+                        $request = $author_ids[$lowercase_request];
                     }
                     $_REQUEST[$index][] = $request;
                 }    
@@ -850,8 +826,6 @@ EOD
             }
         }
         unset( $request );
-        #error_log( '##### filter:posts_where:$_REQUEST=' . print_r( $_REQUEST, TRUE ) );
-        #error_log( '##### filter:posts_where:$where=' . $where );
         # first do custom fields
         $non_field_keys = array( 'magic_fields_search_form', 'magic_fields_search_widget_option',
             'magic_fields_search_widget_number', 'magic-fields-search-and-or', 'magic-fields-show-using-macro', 'post_type',
@@ -877,15 +851,15 @@ EOD
                         if ( $sql3 ) { $sql3 .= ' AND '; }
                         if ( !is_numeric( $value['value'] ) ) { $value['value'] = "'$value[value]'"; }
                         if ( $is_min ) {
-                            $sql3 .= "( w.meta_key = '$key' AND w.meta_value >= $value[value] )";
+                            $sql3 .= $wpdb->prepare( '( w.meta_key = %s AND w.meta_value >= %d )', $key, $value[value] );
                         } else if ( $value['operator'] == 'maximum' ) {
-                            $sql3 .= "( w.meta_key = '$key' AND w.meta_value <= $value[value] )";
+                            $sql3 .= $wpdb->prepare( '( w.meta_key = %s AND w.meta_value <= %d )', $key, $value[value] );
                         }
                     }
                     continue;
                 }
                  if ( $value !== $values[0] ) { $sql .= ' OR '; }
-                $sql .= $wpdb->prepare( "( w.meta_key = %s AND w.meta_value LIKE %s )", $key, "%$value%" );
+                $sql .= $wpdb->prepare( '( w.meta_key = %s AND w.meta_value LIKE %s )', $key, "%$value%" );
             }   # foreach ( $values as $value ) {
             if ( $sql3 ) {
                 if ( substr_compare( $sql, 'WHERE ( ', -8, 8 ) == 0 ) { $sql .= $sql3; }
@@ -894,9 +868,8 @@ EOD
             $sql .= ' ) AND w.post_id = p.ID )';
         }   #  foreach ( $_REQUEST as $key => $values ) {
         if ( $sql ) {
-            $sql = "SELECT p.ID FROM $wpdb->posts p WHERE p.post_type = '$_REQUEST[post_type]' AND p.post_status = 'publish' "
-                . " AND ( $sql ) ";
-            #error_log( '##### filter:posts_where:meta $sql=' . $sql );
+            $sql = $wpdb->prepare( "SELECT p.ID FROM $wpdb->posts p WHERE p.post_type = %s AND p.post_status = 'publish' AND ",
+                $_REQUEST[post_type] ) . "( $sql )";
             $ids0 = $wpdb->get_col( $sql );
             if ( $and_or == 'AND' && !$ids0 ) { return ' AND 1 = 2 '; }
         } else {
@@ -916,15 +889,15 @@ EOD
             $sql2 = '';
             foreach ( $values as $value ) {
                 if ( $sql2 ) { $sql2 .= ' OR '; }
-                $sql2 .= "term_taxonomy_id = $value"; 
+                $sql2 .= $wpdb->prepare( 'term_taxonomy_id = %d', $value ); 
             }   # foreach ( $values as $value ) {
             if ( $sql ) { $sql .= " $and_or "; }
             $sql .= " EXISTS ( SELECT * FROM $wpdb->term_relationships WHERE ( $sql2 ) AND object_id = p.ID )";
         }   # foreach ( $_REQUEST as $key => $values ) {
         if ( $sql ) {
-            $sql = "SELECT p.ID FROM $wpdb->posts p WHERE p.post_type = '$_REQUEST[post_type]' AND p.post_status = 'publish' "
-            . " AND ( $sql ) ";
-            #error_log( '##### filter:posts_where:tax $sql=' . $sql );
+            $sql = $wpdb->prepare(
+                "SELECT p.ID FROM $wpdb->posts p WHERE p.post_type = %s AND p.post_status = 'publish' AND ( $sql )",
+                $_REQUEST[post_type] );
             $ids1 = $wpdb->get_col( $sql );
             if ( $and_or == 'AND' && !$ids1 ) { return ' AND 1 = 2 '; }
         } else {
@@ -940,7 +913,6 @@ EOD
                 , $_REQUEST[post_type], "%{$_REQUEST['pst-std-post_content']}%", "%{$_REQUEST['pst-std-post_content']}%",
                 "%{$_REQUEST['pst-std-post_content']}%" );
             $ids2 = $wpdb->get_col( $sql );
-            #error_log( '##### filter:posts_where:post_content $sql=' . $sql );
             if ( $and_or == 'AND' && !$ids2 ) { return ' AND 1 = 2 '; }
         } else {
             $ids2 = FALSE;
@@ -948,9 +920,13 @@ EOD
         $ids = Search_Using_Magic_Fields_Widget::join_arrays( $and_or, $ids, $ids2 );
         # filter on post_author
         if ( array_key_exists( 'pst-std-post_author', $_REQUEST ) && $_REQUEST['pst-std-post_author'] ) {
-            $sql = "SELECT ID FROM $wpdb->posts WHERE post_type = '$_REQUEST[post_type]' AND post_status = 'publish' "
-                . 'AND post_author IN ( ' . implode( ',', $_REQUEST['pst-std-post_author'] ) . ' )';
-EOD;
+            $authors = implode( ', ', array_map( function( $author ) {
+                global $wpdb;
+                return $wpdb->prepare( '%d', $author );
+            }, $_REQUEST['pst-std-post_author'] ) );
+            $sql = $wpdb->prepare(
+                "SELECT ID FROM $wpdb->posts WHERE post_type = %s AND post_status = 'publish' AND post_author IN ( $authors )",
+                $_REQUEST[post_type] );
             $ids4 = $wpdb->get_col( $sql );
             if ( $and_or == 'AND' && !$ids4 ) { return ' AND 1 = 2 '; }
         } else {
@@ -968,7 +944,6 @@ EOD;
             #$where = " AND ( post_type = '$_REQUEST[post_type]' AND post_status = 'publish' ) ";
             $where = ' AND 1 = 2 ';
         }
-        #error_log( '##### filter:posts_where:$where=' . $where );
         return $where;
     }, 10, 2 );   #	add_filter( 'posts_where', function( $where, $query ) {
     # add null 'query_string' filter to force parse_str() call in WP::build_query_string() - otherwise name gets set ? TODO: why?
@@ -998,12 +973,9 @@ EOD;
             if ( !class_exists( 'Magic_Fields_2_Toolkit_Dumb_Macros' ) ) {
                 include_once( dirname( __FILE__ ) . '/magic-fields-2-dumb-macros.php' );
             }
-            #error_log( '##### action:template_redirect():$wp_query=' . print_r( $wp_query, true ) );
             # get the list of posts
             $posts = array_map( function( $post ) { return $post->ID; }, $wp_query->posts );
-            #error_log( '##### action:template_redirect():$_REQUEST=' . print_r( $_REQUEST, true ) );
             $option = get_option( $_REQUEST['magic_fields_search_widget_option'] );
-            #error_log( '##### action:template_redirect():$option=' . print_r( $option, true ) );
             $number = $_REQUEST['magic_fields_search_widget_number'];
             # get the applicable fields from the options for this widget
             $fields = $option[$number]['show-' . $_REQUEST['post_type']];
@@ -1027,10 +999,6 @@ EOD;
             if ( empty( $macro ) ) { $macro = Search_Using_Magic_Fields_Widget::DEFAULT_CONTENT_MACRO; }
             $macro = htmlspecialchars_decode( $macro );
             if ( $table_width = $option[$number]['table_width'] ) { $table_width = " style='width:{$table_width}px;'"; }
-            #error_log( '##### action:template_redirect():$macro=' . $macro );
-            #error_log( '##### action:template_redirect():$posts='  . print_r( $posts,  true ) );
-            #error_log( '##### action:template_redirect():$fields=' . print_r( $fields, true ) );
-            #error_log( '##### action:template_redirect():$table_width=' . $table_width );
             $post    = $posts[0];
             $posts   = implode( ',', $posts );
             $fields  = implode( ';', $fields );
@@ -1042,7 +1010,6 @@ EOD;
 $macro
 [/show_macro]
 EOD;
-            # error_log( '##### action:template_redirect():$content=' . print_r( $content,  true ) );
             # finally output all the HTML
             # first do the header
             wp_enqueue_script( 'jquery' );

@@ -3,7 +3,7 @@ Contributors: Magenta Cuda
 Tags: search, custom fields
 Requires at least: 3.6
 Tested up to: 3.9
-Stable tag: 0.4.6
+Stable tag: 0.4.6.2
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -36,6 +36,10 @@ Version 0.4.6 has a new default content macro for sortable tables. However, the 
 5. The User's Interface for Settings.
 
 == Changelog ==
+= 0.4.6.2 =
+* fix drag and drop problem on search widgets administrator's interface for older versions of Internet Explorer
+* added style sheet for search widget
+* several small enhancements and bug fixes
 = 0.4.6 =
 * The search results table of posts is now a sortable table. Note that this requires a manual upgrade of search widget's content macro.
 = 0.4.5.3 =
@@ -58,6 +62,10 @@ Version 0.4.6 has a new default content macro for sortable tables. However, the 
 * Initial release.
 
 == Upgrade Notice ==
+= 0.4.6.2 =
+* fix drag and drop problem on search widgets administrator's interface for older versions of Internet Explorer
+* added style sheet for search widget
+* several small enhancements and bug fixes
 = 0.4.6 =
 * The search results table of posts is now a sortable table. Note that this requires a manual upgrade of search widget's content macro.
 = 0.4.5.3 =
